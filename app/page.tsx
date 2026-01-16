@@ -403,15 +403,6 @@ export default function LastoWeb() {
              )}
           </div>
 
-          <div className="flex flex-col items-end space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-gray-300 italic">Lasto beth nîn</span>
-            <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"
-            >
-                <SettingsIcon />
-            </button>
-          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-12 pb-12 overflow-hidden">
@@ -625,8 +616,19 @@ export default function LastoWeb() {
                     Usuń
                 </button>
             </div>
+
+          <div className="flex flex-col items-end space-y-2">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-gray-300 italic">Lasto beth nîn</span>
+            <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"
+            >
+                <SettingsIcon />
+            </button>
+          </div>
           </div>
         </div>
+        
       )}
     </main>
   );
