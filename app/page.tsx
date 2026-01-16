@@ -294,9 +294,10 @@ export default function LastoWeb() {
   };
 
   // --- SYNCHRONIZACJA Z CHMURĄ ---
+
   const syncWithCloud = async () => {
     if (!apiKey) return;
-    setIsProcessing(true); // Użyjemy tego, żeby pokazać spinner
+    setIsProcessing(true);
     
     try {
         // 1. Pobierz listę ostatnich nagrań z AssemblyAI
@@ -313,7 +314,7 @@ export default function LastoWeb() {
                 !history.some(localItem => localItem.id === remoteItem.id)
             );
 
-            // 3. Pobieramy szczegóły tylko dla brakujących (pętla)
+            // 3. Pobieramy szczegóły dla brakujących
             for (const item of missingTranscripts) {
                 try {
                     const detailRes = await fetch(`https://api.assemblyai.com/v2/transcript/${item.id}`, {
@@ -321,18 +322,27 @@ export default function LastoWeb() {
                     });
                     const detail = await detailRes.json();
                     
-                    // Tworzymy nowy obiekt historii
+                    // FORMATOWANIE DATY DO TYTUŁU
+                    // Tworzymy czytelną datę np. "16.01.2026 18:30"
+                    const createdDate = new Date(detail.created);
+                    const dateStr = createdDate.toLocaleDateString('pl-PL');
+                    const timeStr = createdDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+                    
                     const newItem: HistoryItem = {
                         id: detail.id,
-                        title: "Pobrane z chmury", // Niestety Assembly nie trzyma nazwy pliku, więc dajemy domyślną
+                        title: `Nagranie z ${dateStr}, ${timeStr}`, // NOWY TYTUŁ
                         date: detail.created || new Date().toISOString(),
                         content: detail.text,
                         utterances: detail.utterances,
                         speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
                     };
                     
-                    // Dodajemy do stanu (bezpiecznie, unikając duplikatów)
-                    setHistory(prev => [newItem, ...prev]);
+                    setHistory(prev => {
+                        // Podwójne zabezpieczenie przed duplikatami
+                        if (prev.some(p => p.id === newItem.id)) return prev;
+                        // Dodajemy nowe na górę, ale sortowanie i tak zależy od kolejności w tablicy
+                        return [newItem, ...prev];
+                    });
                     addedCount++;
                     
                 } catch (err) {
@@ -340,14 +350,15 @@ export default function LastoWeb() {
                 }
             }
             
+            // NOWE KOMUNIKATY
             if (addedCount > 0) {
-                alert(`Pobrano ${addedCount} nagrań z AssemblyAI.`);
+                alert(`Sukces! Zsynchronizowano ${addedCount} nowych nagrań z archiwum AssemblyAI.`);
             } else {
-                alert("Wszystkie nagrania są już zsynchronizowane.");
+                alert("Twoje archiwum jest aktualne. Wszystkie nagrania z chmury są już na Twoim urządzeniu.");
             }
         }
     } catch (e) {
-        alert("Błąd połączenia z AssemblyAI.");
+        alert("Wystąpił problem z połączeniem. Sprawdź klucz API lub połączenie z internetem.");
     } finally {
         setIsProcessing(false);
     }
