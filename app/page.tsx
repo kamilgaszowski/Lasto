@@ -151,6 +151,7 @@ export default function LastoWeb() {
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [syncStartDate, setSyncStartDate] = useState('');
   const [syncEndDate, setSyncEndDate] = useState('');
+  const [uploadStatus, setUploadStatus] = useState<string>(''); // Nowy status dla wysyłania paczek
 
   // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
@@ -450,7 +451,7 @@ export default function LastoWeb() {
     }
   };
 
-  // --- SYNCHRONIZACJA (PANTRY.CLOUD) ---
+  // --- SYNCHRONIZACJA (PANTRY.CLOUD) - WERSJA CHUNKED (PACZKI) ---
   const saveToCloud = async () => {
     if (!pantryId) {
         setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach!' });
@@ -458,27 +459,58 @@ export default function LastoWeb() {
     }
     
     const cleanId = pantryId.trim();
-    // Koszyk "lastoHistory"
+    // Używamy jednego koszyka
     const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
 
     setIsProcessing(true);
-    try {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ history: history })
-        });
+    setUploadStatus('Przygotowywanie...');
 
-        if (res.ok) {
-            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano historię w chmurze Pantry!' });
-        } else {
-            const errorText = await res.text();
-            throw new Error(`Błąd serwera: ${errorText}`);
+    try {
+        // Dzielimy historię na paczki po 20 elementów (żeby nie przekroczyć limitu)
+        const CHUNK_SIZE = 20;
+        const chunks = [];
+        for (let i = 0; i < history.length; i += CHUNK_SIZE) {
+            chunks.push(history.slice(i, i + CHUNK_SIZE));
         }
+
+        // Najpierw: Wyczyśćmy koszyk (lub nadpiszmy manifest)
+        // Pantry pozwala na POST, który dodaje/aktualizuje klucze.
+        // Wyślemy paczki jedna po drugiej.
+        
+        for (let i = 0; i < chunks.length; i++) {
+            setUploadStatus(`Wysyłanie paczki ${i + 1} z ${chunks.length}...`);
+            
+            const chunkKey = `chunk_${i}`;
+            const payload = {
+                [chunkKey]: chunks[i], // np. "chunk_0": [...]
+                // Dodajemy manifest przy każdej paczce, żeby zawsze był aktualny
+                "manifest": { totalChunks: chunks.length, totalItems: history.length, timestamp: Date.now() }
+            };
+
+            const res = await fetch(url, {
+                method: 'POST', // POST w Pantry aktualizuje/dodaje klucze w koszyku
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Błąd wysyłania paczki ${i}: ${errorText}`);
+            }
+        }
+
+        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię w ${chunks.length} paczkach.` });
+
     } catch (e: any) {
-        setInfoModal({ isOpen: true, title: 'Wystąpił błąd', message: `Nie udało się połączyć. (${e.message})` });
+        console.error("Błąd Pantry:", e);
+        setInfoModal({ 
+            isOpen: true, 
+            title: 'Wystąpił błąd', 
+            message: `Nie udało się zapisać. ${e.message}` 
+        });
     } finally {
         setIsProcessing(false);
+        setUploadStatus('');
     }
   };
 
@@ -491,32 +523,60 @@ export default function LastoWeb() {
     setIsProcessing(true);
     try {
         const res = await fetch(url, { method: 'GET' });
-        if (!res.ok) throw new Error("Nie znaleziono danych.");
+        
+        if (!res.ok) {
+            throw new Error("Nie znaleziono danych w tym koszyku.");
+        }
 
         const data = await res.json();
-        const remoteHistory = data.history;
+        
+        // Sprawdzamy czy mamy do czynienia z wersją paczkowaną
+        let remoteHistory: HistoryItem[] = [];
 
-        if (Array.isArray(remoteHistory)) {
+        if (data.manifest && typeof data.manifest.totalChunks === 'number') {
+            // Logika scalania paczek
+            for (let i = 0; i < data.manifest.totalChunks; i++) {
+                const chunkKey = `chunk_${i}`;
+                if (data[chunkKey] && Array.isArray(data[chunkKey])) {
+                    remoteHistory = [...remoteHistory, ...data[chunkKey]];
+                }
+            }
+        } else if (data.history && Array.isArray(data.history)) {
+            // Stara wersja (jeden plik) - kompatybilność wsteczna
+            remoteHistory = data.history;
+        } else {
+             // Może user ma tylko 1 paczkę w "chunk_0"?
+             if (data.chunk_0 && Array.isArray(data.chunk_0)) {
+                 remoteHistory = data.chunk_0;
+             }
+        }
+
+        if (remoteHistory.length > 0) {
              setHistory(prev => {
                 const combined = [...remoteHistory, ...prev];
                 const unique = combined.filter((item, index, self) => 
                     index === self.findIndex((t: any) => t.id === item.id)
                 );
                 const sorted = unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                
+                // Zapis do IndexedDB
                 sorted.forEach(async (item: HistoryItem) => await dbSave(item));
+                
                 return sorted;
             });
             setIsSettingsOpen(false);
-            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Pobrano historię z chmury.' });
+            setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano i scalono ${remoteHistory.length} nagrań.` });
+        } else {
+            throw new Error("Koszyk jest pusty lub ma nieznany format.");
         }
     } catch (e: any) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message });
+        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message || 'Nie udało się pobrać danych.' });
     } finally {
         setIsProcessing(false);
     }
   };
 
-  // --- OBSŁUGA DYSKU ---
+  // --- OBSŁUGA DYSKU (PLIK) ---
   const saveToDisk = () => {
     const dataStr = JSON.stringify(history, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -537,8 +597,9 @@ export default function LastoWeb() {
         try {
             const imported = JSON.parse(e.target?.result as string);
             if (Array.isArray(imported)) {
-                for (const item of imported) await dbSave(item);
-                
+                for (const item of imported) {
+                    await dbSave(item);
+                }
                 setHistory(prev => {
                     const combined = [...imported, ...prev];
                     const unique = combined.filter((item, index, self) => 
@@ -558,6 +619,7 @@ export default function LastoWeb() {
     reader.readAsText(file);
   };
 
+  // --- LOGIKA FILTROWANIA (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
 
@@ -672,7 +734,7 @@ export default function LastoWeb() {
                      <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">
                         {syncProgress 
                            ? `Pobieranie ${syncProgress.current} z ${syncProgress.total}...`
-                           : (status || 'Przetwarzanie...')}
+                           : (uploadStatus || status || 'Przetwarzanie...')}
                      </span>
                   </div>
                 ) : !apiKey ? (
