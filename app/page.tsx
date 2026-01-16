@@ -92,7 +92,11 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   
+
+const [syncStartDate, setSyncStartDate] = useState('');
+  const [syncEndDate, setSyncEndDate] = useState('');
   // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
@@ -301,86 +305,205 @@ export default function LastoWeb() {
     setIsDragging(false);
   };
 
-  // --- SYNCHRONIZACJA Z CHMURĄ (NAPRAWIONA: DATA + MODAL) ---
- // --- SYNCHRONIZACJA Z CHMURĄ (Z POPRAWNĄ DATĄ HISTORYCZNĄ) ---
+  // --- SYNCHRONIZACJA Z CHMURĄ 
   const syncWithCloud = async () => {
-    if (!apiKey) return;
-    setIsProcessing(true);
     
+    
+    if (!apiKey) return;
+    
+    // 1. Zamykamy ustawienia i czyścimy stany
+    setIsSettingsOpen(false);
+    setIsProcessing(true);
+    setSyncProgress(null); 
+
     try {
-        // 1. Pobierz listę ostatnich nagrań z AssemblyAI
-        const response = await fetch('https://api.assemblyai.com/v2/transcript?limit=50&status=completed', {
+        // Pobieramy listę (limit 100, żeby mieć z czego filtrować datami)
+        const response = await fetch('https://api.assemblyai.com/v2/transcript?limit=100&status=completed', {
             headers: { 'Authorization': apiKey }
         });
         const data = await response.json();
         
         if (data.transcripts && Array.isArray(data.transcripts)) {
-            let addedCount = 0;
-            // 2. Filtrujemy tylko te, których nie mamy
-            const missingTranscripts = data.transcripts.filter((remoteItem: any) => 
+            // 2. Filtrowanie po dacie (jeśli ustawiono)
+            let filteredList = data.transcripts;
+            
+            if (syncStartDate) {
+                const start = new Date(syncStartDate).getTime();
+                filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() >= start);
+            }
+            if (syncEndDate) {
+                // Ustawiamy koniec dnia (23:59:59), żeby łapało też dzisiejsze
+                const end = new Date(syncEndDate);
+                end.setHours(23, 59, 59, 999);
+                filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() <= end.getTime());
+            }
+
+            // 3. Sprawdzamy, czego nam brakuje
+            const missingTranscripts = filteredList.filter((remoteItem: any) => 
                 !history.some(localItem => localItem.id === remoteItem.id)
             );
 
-            // 3. Pobieramy szczegóły
-            for (const item of missingTranscripts) {
+            if (missingTranscripts.length === 0) {
+                setInfoModal({ isOpen: true, title: 'Info', message: 'Brak nowych nagrań w wybranym zakresie dat.' });
+                setIsProcessing(false);
+                return;
+            }
+
+            // Ustawiamy licznik
+            setSyncProgress({ current: 0, total: missingTranscripts.length });
+            let addedCount = 0;
+            let memoryFull = false;
+
+            for (let i = 0; i < missingTranscripts.length; i++) {
+                // Jeśli pamięć pełna, przerywamy pętlę
+                if (memoryFull) break;
+
+                const item = missingTranscripts[i];
+                setSyncProgress({ current: i + 1, total: missingTranscripts.length });
+
                 try {
                     const detailRes = await fetch(`https://api.assemblyai.com/v2/transcript/${item.id}`, {
                         headers: { 'Authorization': apiKey }
                     });
                     const detail = await detailRes.json();
                     
-                    // --- KLUCZOWA ZMIANA DATY ---
-                    // Bierzemy datę z LISTY (item.created), bo tam jest zawsze.
-                    // Szczegóły (detail) często nie mają pola 'created'.
-                    let rawDate = item.created; 
-                    
-                    // Bezpiecznik: Upewniamy się, że to string
-                    if (!rawDate) {
-                        console.warn("Brak daty dla nagrania:", item.id);
-                        rawDate = new Date().toISOString(); // Tylko w ostateczności
-                    }
-
-                    // Tworzymy obiekt daty
+                    let rawDate = item.created || new Date().toISOString();
                     const createdDate = new Date(rawDate);
-                    
-                    // Formatowanie do tytułu (np. 16.01.2024, 15:30)
                     const dateStr = createdDate.toLocaleDateString('pl-PL');
                     const timeStr = createdDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
                     
                     const newItem: HistoryItem = {
                         id: detail.id,
-                        // Tytuł z datą historyczną
                         title: `Nagranie z ${dateStr}, ${timeStr}`,
-                        // Data historyczna do sortowania w sidebarze
                         date: rawDate, 
                         content: detail.text,
                         utterances: detail.utterances,
                         speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
                     };
                     
-                    setHistory(prev => {
-                        if (prev.some(p => p.id === newItem.id)) return prev;
-                        // Dodajemy nowe
-                        return [newItem, ...prev];
-                    });
-                    addedCount++;
+                    // PRÓBA ZAPISU (Zabezpieczenie przed limitem)
+                    try {
+                        setHistory(prev => {
+                            if (prev.some(p => p.id === newItem.id)) return prev;
+                            // Sortowanie: Najnowsze na górę (b - a)
+                            const updated = [newItem, ...prev];
+                            return updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                        });
+                        addedCount++;
+                    } catch (storageError) {
+                        console.error("Memory limit reached");
+                        memoryFull = true;
+                    }
                     
                 } catch (err) {
-                    console.error("Błąd pobierania szczegółów:", item.id);
+                    console.error("Błąd sieci:", item.id);
                 }
             }
             
-            if (addedCount > 0) {
-                setInfoModal({ isOpen: true, title: 'Sukces', message: `Zsynchronizowano ${addedCount} nowych nagrań z archiwum AssemblyAI.` });
-            } else {
-                setInfoModal({ isOpen: true, title: 'Info', message: 'Twoje archiwum jest aktualne. Wszystkie nagrania są już pobrane.' });
+            // Koniec - Raport
+            setSyncProgress(null);
+            
+            let msg = `Pobrano ${addedCount} nagrań.`;
+            if (memoryFull) {
+                msg += ` Przerwano z powodu braku miejsca w przeglądarce (limit pamięci).`;
             }
+            
+            setInfoModal({ 
+                isOpen: true, 
+                title: memoryFull ? 'Pamięć pełna' : 'Sukces', 
+                message: msg 
+            });
         }
     } catch (e) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Wystąpił problem z połączeniem. Sprawdź klucz API.' });
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Problem z połączeniem z AssemblyAI.' });
     } finally {
         setIsProcessing(false);
+        setSyncProgress(null);
     }
+
+    // --- OBSŁUGA DYSKU (ZAPIS/ODCZYT PLIKU) ---
+  const saveToDisk = () => {
+    const dataStr = JSON.stringify(history, null, 2); // Ładne formatowanie
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `lasto_archiwum_${new Date().toISOString().slice(0,10)}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loadFromDisk = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const imported = JSON.parse(e.target?.result as string);
+            if (Array.isArray(imported)) {
+                // Scalamy obecne z nowymi (bez duplikatów)
+                setHistory(prev => {
+                    const combined = [...imported, ...prev];
+                    const unique = combined.filter((item, index, self) => 
+                        index === self.findIndex((t) => t.id === item.id)
+                    );
+                    return unique.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                });
+                alert(`Wczytano ${imported.length} nagrań z pliku.`);
+                setIsSettingsOpen(false); // Zamykamy okno
+            } else {
+                alert("Nieprawidłowy format pliku.");
+            }
+        } catch (err) {
+            alert("Błąd odczytu pliku.");
+        }
+    };
+    reader.readAsText(file);
+  };
+  };
+
+  // --- OBSŁUGA DYSKU (ZAPIS/ODCZYT PLIKU) ---
+  const saveToDisk = () => {
+    const dataStr = JSON.stringify(history, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `lasto_archiwum_${new Date().toISOString().slice(0,10)}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loadFromDisk = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const imported = JSON.parse(e.target?.result as string);
+            if (Array.isArray(imported)) {
+                setHistory(prev => {
+                    // Scalamy i usuwamy duplikaty po ID
+                    const combined = [...imported, ...prev];
+                    const unique = combined.filter((item, index, self) => 
+                        index === self.findIndex((t: any) => t.id === item.id)
+                    );
+                    // Sortujemy od najnowszych
+                    return unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                });
+                // Zamykamy okno i pokazujemy info
+                setIsSettingsOpen(false);
+                setInfoModal({ isOpen: true, title: 'Sukces', message: `Wczytano ${imported.length} nagrań z pliku.` });
+            } else {
+                alert("Nieprawidłowy format pliku.");
+            }
+        } catch (err) {
+            alert("Błąd odczytu pliku.");
+        }
+    };
+    reader.readAsText(file);
   };
   // --- LOGIKA SWIFT (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
@@ -703,27 +826,60 @@ export default function LastoWeb() {
                 </div>
 
                 {/* SEKCJA CHMURY */}
-                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Synchronizacja</label>
+                {/* SEKCJA: CHMURA (ASSEMBLY AI) */}
+                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Pobierz z AssemblyAI</label>
                     
+                    {/* Wybór dat */}
+                    <div className="flex space-x-2">
+                        <div className="flex-1 space-y-1">
+                            <span className="text-[9px] text-gray-400 uppercase">Od:</span>
+                            <input 
+                                type="date" 
+                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-xs border-none"
+                                value={syncStartDate}
+                                onChange={(e) => setSyncStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                            <span className="text-[9px] text-gray-400 uppercase">Do:</span>
+                            <input 
+                                type="date" 
+                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-xs border-none"
+                                value={syncEndDate}
+                                onChange={(e) => setSyncEndDate(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
                     <button 
                         onClick={syncWithCloud}
                         disabled={!apiKey || isProcessing}
-                        className="w-full px-4 py-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-xs font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
                     >
-                        {isProcessing ? (
-                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>
-                        ) : (
-                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                           </svg>
-                        )}
-                        <span>Pobierz historię z AssemblyAI</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                        <span>Pobierz wybrane</span>
                     </button>
-                    <p className="text-[9px] text-gray-400 text-center leading-relaxed px-4">
-                        Pobierze ostatnie 50 nagrań z Twojego konta. <br/>
-                        Uwaga: Niestandardowe nazwy rozmówców nie zostaną przywrócone.
-                    </p>
+                </div>
+
+                {/* SEKCJA: MÓJ DYSK (IMPORT/EXPORT) */}
+                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={saveToDisk}
+                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                        >
+                            <span>Zapisz na dysk</span>
+                        </button>
+                        
+                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
+                            <span>Wczytaj z dysku</span>
+                            <input type="file" className="hidden" accept=".json" onChange={loadFromDisk} />
+                        </label>
+                    </div>
                 </div>
             </div>
 
