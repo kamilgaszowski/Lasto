@@ -823,13 +823,48 @@ export default function LastoWeb() {
                   />
               </div>
 
-              <textarea className="flex-1 w-full p-8 bg-gray-100/40 dark:bg-gray-900/40 dark:text-gray-200 rounded-2xl font-mono text-sm leading-relaxed border-none focus:ring-0 resize-none selection:bg-blue-50 dark:selection:bg-blue-900" value={getDisplayText(selectedItem)} readOnly />
+             {/* OBSZAR TEKSTU */}
+              <textarea 
+                  className="flex-1 w-full p-8 bg-gray-100/40 dark:bg-gray-900/40 dark:text-gray-200 rounded-2xl font-mono text-sm leading-relaxed border-none focus:ring-0 resize-none selection:bg-blue-50 dark:selection:bg-blue-900" 
+                  value={getDisplayText(selectedItem)} 
+                  readOnly 
+              />
               
-              <div className="flex items-center">
-                <button onClick={() => { navigator.clipboard.writeText(getDisplayText(selectedItem)); alert('Skopiowano!'); }} className="w-fit px-5 py-2 border border-gray-200 dark:border-gray-800 text-gray-400 text-[10px] uppercase tracking-widest rounded hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white transition-all">
-                    Kopiuj tekst
-                </button>
+              {/* DOLNY PASEK AKCJI W EDYCJI */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center space-x-3">
+                    {/* PRZYCISK: ZAPISZ W CHMURZE */}
+                    <button 
+                        onClick={saveToCloud}
+                        disabled={!pantryId || isProcessing}
+                        className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!pantryId ? "Skonfiguruj Pantry ID w ustawieniach" : "Zapisz zmiany w chmurze"}
+                    >
+                        {isProcessing ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
+                            </svg>
+                        )}
+                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz (Chmura)'}</span>
+                    </button>
+
+                    <span className="text-[9px] text-gray-300 dark:text-gray-700">|</span>
+
+                    {/* PRZYCISK: KOPIUJ */}
+                    <button 
+                        onClick={() => { navigator.clipboard.writeText(getDisplayText(selectedItem)); alert('Skopiowano!'); }} 
+                        className="px-5 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-[10px] uppercase tracking-widest font-medium flex items-center space-x-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                        <span>Kopiuj tekst</span>
+                    </button>
+                </div>
               </div>
+            </div>
             </div>
           )}
         </div>
@@ -973,21 +1008,38 @@ export default function LastoWeb() {
                     </button>
                 </div>
 
-                {/* SEKCJA: PEŁNA SYNCHRONIZACJA (PANTRY CLOUD) */}
+               {/* SEKCJA: PEŁNA SYNCHRONIZACJA (PANTRY CLOUD) */}
                 <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
                         Chmura synchronizacji (<a href="https://getpantry.cloud/" target="_blank" className="underline">Pantry Cloud</a>)
                     </label>
                     
-                    <div className="space-y-2">
-                        <input 
-                            type="text" 
-                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs"
-                            placeholder="Pantry ID (np. 94380a04-...)"
-                            value={pantryId}
-                            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
-                        />
-                    </div>
+                    {/* ZMIANA: Formularz, żeby Chrome zapamiętał ID */}
+                    <form 
+                        className="space-y-2"
+                        onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
+                    >
+                        {/* Trik dla menedżera haseł: Stała nazwa użytkownika */}
+                        <input type="text" name="username" value="LastoPantryID" autoComplete="username" className="hidden" readOnly />
+                        
+                        <div className="relative">
+                            <input 
+                                type="password" 
+                                name="password"
+                                autoComplete="current-password"
+                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs pr-10"
+                                placeholder="Pantry ID (np. 94380a04-...)"
+                                value={pantryId}
+                                onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
+                            />
+                            {/* Ikonka kłódki */}
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    </form>
 
                     <div className="grid grid-cols-2 gap-3">
                         <button 
