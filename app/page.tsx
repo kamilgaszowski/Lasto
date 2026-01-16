@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // --- MODELE DANYCH ---
 interface Utterance {
@@ -175,13 +175,14 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+  
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+  // Stany synchronizacji
+ 
+const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>(''); 
   const [syncStartDate, setSyncStartDate] = useState('');
   const [syncEndDate, setSyncEndDate] = useState('');
-  // Stany synchronizacji
- 
-
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -239,6 +240,13 @@ export default function LastoWeb() {
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
+
+  // Focus na modal usuwania, żeby Enter działał od razu
+  useEffect(() => {
+    if (isDeleteModalOpen) {
+      deleteModalRef.current?.focus();
+    }
+  }, [isDeleteModalOpen]);
 
   // --- FUNKCJE LOGICZNE ---
 
@@ -596,6 +604,25 @@ export default function LastoWeb() {
             <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors">
               <RuneArrowLeft />
             </button>
+          </div>
+          {/* NOWE: PRZYCISKI SYNC NA GÓRZE SIDEBARA */}
+          <div className="px-6 pb-6 flex space-x-2">
+              <button 
+                onClick={loadFromCloud} 
+                disabled={!pantryId || isProcessing}
+                className="flex-1 py-2 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] uppercase font-bold tracking-wider hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                <span>Pobierz</span>
+              </button>
+              <button 
+                onClick={saveToCloud} 
+                disabled={!pantryId || isProcessing}
+                className="flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] uppercase font-bold tracking-wider hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                <span>Wyślij</span>
+              </button>
           </div>
           <div className="flex-1 flex flex-col overflow-y-auto px-4 space-y-1">
             {history.map((item) => (
@@ -989,35 +1016,27 @@ export default function LastoWeb() {
    
       {isDeleteModalOpen && (
         <div 
-            className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
+            ref={deleteModalRef}
+            className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 outline-none"
             onClick={() => setIsDeleteModalOpen(false)}
-            // DODANE: Obsługa Enter i Escape
             onKeyDown={(e) => {
-                if (e.key === 'Enter') executeDelete();
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  executeDelete();
+                }
                 if (e.key === 'Escape') setIsDeleteModalOpen(false);
             }}
-            tabIndex={0} 
-            autoFocus // Ważne, żeby modal od razu przejął kontrolę nad klawiaturą
+            tabIndex={-1} 
         >
-          <div 
-            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center"
-            onClick={(e) => e.stopPropagation()} 
-          >
-            {/* ... zawartość ikonki i tekstu ... */}
-
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-500 mb-4"><TrashIcon /></div>
+            <div className="space-y-2">
+                <h3 className="text-xl font-medium dark:text-white">Usunąć nagranie?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Tej operacji nie można cofnąć.</p>
+            </div>
             <div className="flex space-x-3 pt-2">
-                <button 
-                    onClick={() => setIsDeleteModalOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium"
-                >
-                    Anuluj
-                </button>
-                <button 
-                    onClick={executeDelete}
-                    className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20"
-                >
-                    Usuń (Enter)
-                </button>
+                <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium">Anuluj</button>
+                <button onClick={executeDelete} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20">Usuń (Enter)</button>
             </div>
           </div>
         </div>
