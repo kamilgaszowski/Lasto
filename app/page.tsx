@@ -978,81 +978,69 @@ useEffect(() => {
                     </div>
                 </div>
 
-              {/* 2. KLUCZE API (FORMULARZ) */}
+            {/* 2. KLUCZE API (FORMULARZ) */}
                 <form 
-                    className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800"
-                    onSubmit={(e) => { 
-                        e.preventDefault(); 
-                        setIsSettingsOpen(false); 
-                    }}
+                    className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800"
+                    onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}
                 >
-                  <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup kluczy</label>
-    <div className="grid grid-cols-2 gap-3">
-        <button 
-            onClick={exportKeys}
-            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
-        >
-            Zapisz klucze
-        </button>
-        <label className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">
-            Wczytaj klucze
-            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
-        </label>
-    </div>
-</div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucze dostępowe</label>
                     
                     {/* AssemblyAI */}
-                    <div className="space-y-2">
-                        <label className="text-[9px] text-gray-400 uppercase ml-1">AssemblyAI Key</label>
-                        <div className="relative">
-                            <input 
-                                type="password" 
-                                name="assembly-key"
-                                autoComplete="current-password"
-                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white" 
-                                value={apiKey} 
-                                onChange={(e) => { 
-                                    const val = e.target.value;
-                                    setApiKey(val); 
-                                    localStorage.setItem('assemblyAIKey', val); 
-                                }} 
-                                placeholder="Wklej klucz AssemblyAI..." 
-                            />
-                        </div>
+                    <div className="space-y-3">
+                        <label className="text-[11px] text-gray-500 dark:text-gray-400 uppercase ml-1">AssemblyAI Key</label>
+                        <input 
+                            type="password" 
+                            name="assembly-key"
+                            autoComplete="current-password"
+                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white" 
+                            value={apiKey} 
+                            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                            placeholder="Wklej klucz..." 
+                        />
+                        {!apiKey && (
+                          <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80 ml-1 leading-relaxed">
+                            💡 Wymagany do zamiany mowy na tekst. Pobierz go z dashboardu AssemblyAI.
+                          </p>
+                        )}
                     </div>
 
                     {/* Pantry Cloud */}
-                    <div className="space-y-2">
-                        <label className="text-[9px] text-gray-400 uppercase ml-1">Pantry ID (Sync)</label>
-                        {/* Pomocniczy input dla managera haseł */}
+                    <div className="space-y-3">
+                        <label className="text-[11px] text-gray-500 dark:text-gray-400 uppercase ml-1">Pantry ID (Synchronizacja)</label>
                         <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
-                        <div className="relative">
-                            <input 
-                                type="password" 
-                                name="password"
-                                autoComplete="current-password"
-                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white"
-                                placeholder="Wklej Pantry ID..."
-                                value={pantryId}
-                                onChange={(e) => { 
-                                    const val = e.target.value;
-                                    setPantryId(val); 
-                                    localStorage.setItem('pantryId', val); 
-                                }}
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                    <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                        </div>
+                        <input 
+                            type="password" 
+                            name="password"
+                            autoComplete="current-password"
+                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white"
+                            placeholder="Wklej Pantry ID..."
+                            value={pantryId}
+                            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
+                        />
+                        {!pantryId && (
+                          <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80 ml-1 leading-relaxed">
+                            💡 Wymagany do trwałego przechowywania historii w chmurze.
+                          </p>
+                        )}
                     </div>
-                    {/* Ukryty przycisk submit, który aktywuje menedżera haseł po naciśnięciu Enter */}
-                    <button type="submit" className="hidden" />
                 </form>
 
+                {/* NOWE: BACKUP KLUCZY */}
+                <div className="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup kluczy</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={exportKeys}
+                            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider"
+                        >
+                            Pobierz klucze
+                        </button>
+                        <label className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">
+                            Wczytaj klucze
+                            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
+                        </label>
+                    </div>
+                </div>
              
                 {/* 4. DYSK (IMPORT/EXPORT) */}
                 <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
