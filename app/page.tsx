@@ -406,10 +406,12 @@ useEffect(() => {
   };
 
   // --- UPLOAD (ASSEMBLY AI) ---
-  const checkStatus = async (id: string, fileName: string) => {
+const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { headers: { 'Authorization': apiKey } });
+        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { 
+          headers: { 'Authorization': apiKey } 
+        });
         if (!res.ok) return;
         const result = await res.json();
 
@@ -423,11 +425,19 @@ useEffect(() => {
             utterances: result.utterances,
             speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
+          
+          // 1. Zapisz lokalnie
           await dbSave(newItem);
+          
+          // 2. Zaktualizuj stan (używamy funkcyjnego update, żeby mieć najświeższą listę)
           setHistory(prev => {
-             if (prev.some(item => item.id === newItem.id)) return prev;
-             return [newItem, ...prev];
+             const updated = [newItem, ...prev];
+             // 3. AUTOMATYCZNY ZAPIS DO PANTRY po pojawieniu się nowego nagrania
+             // Wywołujemy to z lekkim opóźnieniem, żeby React zdążył przetworzyć stan history
+             setTimeout(() => saveToCloudWithData(updated), 500);
+             return updated;
           });
+
           setSelectedItem(newItem);
           setIsProcessing(false);
           setStatus('');
@@ -436,7 +446,10 @@ useEffect(() => {
           setStatus('Błąd');
           setIsProcessing(false);
         }
-      } catch (err) { clearInterval(interval); setIsProcessing(false); }
+      } catch (err) { 
+        clearInterval(interval); 
+        setIsProcessing(false); 
+      }
     }, 3000);
   };
   
@@ -539,6 +552,24 @@ useEffect(() => {
     }
   };
 
+  // Wersja saveToCloud używana przez automat
+  const saveToCloudWithData = async (dataToSave: HistoryItem[]) => {
+    if (!pantryId) return;
+    const cleanId = pantryId.trim();
+    const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
+    try {
+        const compressed = compressHistory(dataToSave);
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                chunk_0: compressed.slice(0, 50), 
+                manifest: { totalChunks: Math.ceil(compressed.length / 50), timestamp: Date.now() } 
+            })
+        });
+        console.log("Automatyczny backup wykonany.");
+    } catch (e) { console.error("Auto-backup failed", e); }
+  };
   const loadFromCloud = async () => {
     if (!pantryId) {
         setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach.' });
@@ -976,7 +1007,7 @@ useEffect(() => {
                             <h4 className="font-bold uppercase tracking-widest text-xs">Synchronizacja (Pantry)</h4>
                         </div>
                         <div className="pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-                            <p>Pantry ID pozwala na bezpieczne przechowywanie Twojej historii w chmurze, dzięki czemu nie zniknie ona po wyczyszczeniu danych przeglądarki.</p>
+                            <p>Pantry ID pozwala na bezpieczne przechowywanie Twojej historii w chmurze, dzięki czemu nie zniknie ona po wyczyszczeniu danych przeglądarki. </p>
                             <ul className="list-disc space-y-3 pl-4 font-medium">
                                 <li>Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="underline text-indigo-600 dark:text-indigo-400">getpantry.cloud</a></li>
                                 <li>Kliknij <span className="text-black dark:text-white">Create a Pantry</span></li>
