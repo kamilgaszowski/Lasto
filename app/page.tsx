@@ -521,7 +521,7 @@ export default function LastoWeb() {
                 </div>
 
                 <div className="space-y-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucz API AssemblyAI</label>
+                    <label className="text-[10px] font-bold text-gray-400 tracking-[0.2em]">Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a></label>
                     <input 
                         type="password" 
                         className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400" 
