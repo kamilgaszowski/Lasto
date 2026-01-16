@@ -92,6 +92,7 @@ export default function LastoWeb() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Edycja & Motyw
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -245,22 +246,63 @@ export default function LastoWeb() {
     }, 3000);
   };
   
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !apiKey) return;
-    setIsProcessing(true);
+  // --- NOWA LOGIKA UPLOADU (OBSŁUGUJE INPUT I DRAG & DROP) ---
+  
+  const processFile = async (file: File) => {
+    if (!apiKey) {
+        alert("Wprowadź najpierw klucz API w ustawieniach.");
+        setIsSettingsOpen(true);
+        return;
+    }
     
+    setIsProcessing(true);
+    setStatus('Wysyłanie...');
+
     try {
-      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', { method: 'POST', headers: { 'Authorization': apiKey }, body: file });
+      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', { 
+        method: 'POST', 
+        headers: { 'Authorization': apiKey }, 
+        body: file 
+      });
+      
       const { upload_url } = await uploadRes.json();
-     
+      
+      setStatus('Przetwarzanie AI...');
+      
       const transcriptRes = await fetch('https://api.assemblyai.com/v2/transcript', {
-        method: 'POST', headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+        method: 'POST', 
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ audio_url: upload_url, language_code: 'pl', speaker_labels: true })
       });
+
       const { id } = await transcriptRes.json();
       checkStatus(id, file.name);
-    } catch (e) { setStatus('Błąd'); setIsProcessing(false); }
+    } catch (e) { 
+        setStatus('Błąd połączenia'); 
+        setTimeout(() => setIsProcessing(false), 3000);
+    }
+  };
+
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
   };
 
   // --- KLUCZOWA ZMIANA: TŁUMACZENIE LOGIKI SWIFT (isJunk) NA JS ---
@@ -395,9 +437,21 @@ export default function LastoWeb() {
                 ) : (
                   /* 2. Przycisk widoczny TYLKO gdy nie przetwarza */
                   <>
-                    <label className="group relative cursor-pointer bg-black dark:bg-white dark:text-black text-white px-12 py-5 rounded-full transition-all hover:scale-105 active:scale-95 shadow-xl">
-                      Importuj nagranie
-                      <input type="file" className="hidden" accept="audio/*" onChange={handleFileUpload} />
+                  <label 
+                        /* DODANE ZDARZENIA DRAG & DROP */
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        
+                        /* ZMIENIONE STYLE (REAKCJA NA DRAG) */
+                        className={`group relative cursor-pointer px-12 py-5 rounded-full transition-all shadow-xl flex flex-col items-center justify-center border-2 
+                        ${isDragging 
+                            ? 'bg-gray-800 text-white scale-110 border-white border-dashed' // Styl gdy przeciągasz
+                            : 'bg-black dark:bg-white dark:text-black text-white border-transparent hover:scale-105 active:scale-95' // Styl normalny
+                        }`}
+                    >
+                      {isDragging ? 'Upuść tutaj!' : 'Importuj nagranie'}
+                      <input type="file" className="hidden" accept="audio/*" onChange={handleFileInput} />
                     </label>
                     <p className="text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-600">WAV • MP3 • M4A</p>
                   </>
