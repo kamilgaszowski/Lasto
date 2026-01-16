@@ -803,6 +803,22 @@ export default function LastoWeb() {
                         <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300">
                         <EditIcon />
                         </span>
+                          {/* PRZYCISK: ZAPISZ W CHMURZE */}
+                    <button 
+                        onClick={saveToCloud}
+                        disabled={!pantryId || isProcessing}
+                        className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!pantryId ? "Skonfiguruj Pantry ID w ustawieniach" : "Zapisz zmiany w chmurze"}
+                    >
+                        {isProcessing ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
+                            </svg>
+                        )}
+                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz (Chmura)'}</span>
+                    </button>
                     </div>
                   </div>
                 )}
@@ -833,22 +849,7 @@ export default function LastoWeb() {
               {/* DOLNY PASEK AKCJI W EDYCJI */}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center space-x-3">
-                    {/* PRZYCISK: ZAPISZ W CHMURZE */}
-                    <button 
-                        onClick={saveToCloud}
-                        disabled={!pantryId || isProcessing}
-                        className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={!pantryId ? "Skonfiguruj Pantry ID w ustawieniach" : "Zapisz zmiany w chmurze"}
-                    >
-                        {isProcessing ? (
-                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
-                            </svg>
-                        )}
-                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz (Chmura)'}</span>
-                    </button>
+                  
 
                     <span className="text-[9px] text-gray-300 dark:text-gray-700">|</span>
 
