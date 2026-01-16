@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // --- MODELE DANYCH ---
 interface Utterance {
@@ -20,6 +20,58 @@ interface HistoryItem {
   utterances?: Utterance[];
   speakerNames?: SpeakerMap;
 }
+
+// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH) ---
+const DB_NAME = 'LastoDB';
+const STORE_NAME = 'recordings';
+const DB_VERSION = 1;
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const dbSave = async (item: HistoryItem) => {
+  const db = await openDB();
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+const dbGetAll = async (): Promise<HistoryItem[]> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const dbDelete = async (id: string) => {
+  const db = await openDB();
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+};
 
 // --- IKONY ---
 const RuneArrowLeft = () => (
@@ -77,7 +129,6 @@ const MoonIcon = () => (
     </svg>
 );
 
-// Ikonka "Info" do modala sukcesu
 const InfoIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
       <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
@@ -92,11 +143,12 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   
-
-const [syncStartDate, setSyncStartDate] = useState('');
+  // Nowe stany (Sync & Dates)
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+  const [syncStartDate, setSyncStartDate] = useState('');
   const [syncEndDate, setSyncEndDate] = useState('');
+
   // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
@@ -105,7 +157,7 @@ const [syncStartDate, setSyncStartDate] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  // Info Modal (zamiast alertów)
+  // Info Modal
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
   // Edycja & Motyw
@@ -114,62 +166,59 @@ const [syncStartDate, setSyncStartDate] = useState('');
   
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // --- 1. ODCZYT DANYCH ---
+  // --- 1. ODCZYT DANYCH (MIGRACJA Z LOCALSTORAGE -> INDEXEDDB) ---
   useEffect(() => {
     const savedKey = localStorage.getItem('assemblyAIKey') || '';
-    const savedHistoryRaw = localStorage.getItem('lastoHistory');
-    
     setApiKey(savedKey);
 
+    // Persistence Check
     if (navigator.storage && navigator.storage.persist) {
-        navigator.storage.persist().then((granted) => {
-             console.log(granted ? "Storage persistent: OK" : "Storage persistent: Failed");
-        });
+        navigator.storage.persist().then((granted) => console.log("Storage persistent:", granted));
     }
 
-    if (savedHistoryRaw) {
+    // Inicjalizacja Bazy i Ładowanie
+    const initData = async () => {
         try {
-            const parsed = JSON.parse(savedHistoryRaw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const uniqueHistory = parsed.filter((item, index, self) => 
-                    index === self.findIndex((t) => (t.id === item.id))
-                );
-                setHistory(uniqueHistory);
+            // Sprawdź czy są stare dane w LocalStorage (Migracja)
+            const oldHistoryRaw = localStorage.getItem('lastoHistory');
+            if (oldHistoryRaw) {
+                console.log("Migracja danych z LocalStorage do IndexedDB...");
+                const parsed = JSON.parse(oldHistoryRaw);
+                if (Array.isArray(parsed)) {
+                    for (const item of parsed) {
+                        await dbSave(item);
+                    }
+                }
+                // Wyczyść stare po udanej migracji
+                localStorage.removeItem('lastoHistory');
             }
-        } catch(e) { console.error(e); }
-    }
+
+            // Pobierz dane z IndexedDB
+            const items = await dbGetAll();
+            // Sortowanie: Najnowsze na górze
+            const sorted = items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setHistory(sorted);
+
+        } catch (e) {
+            console.error("Błąd bazy danych:", e);
+        }
+    };
+
+    initData();
 
     const savedTheme = localStorage.getItem('lastoTheme') as 'light' | 'dark' | null;
     if (savedTheme) setTheme(savedTheme);
     else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
   }, []);
 
-  // --- 2. ZAPISYWANIE DANYCH ---
-  useEffect(() => {
-    if (history.length === 0) return;
-
-    try {
-        localStorage.setItem('lastoHistory', JSON.stringify(history));
-    } catch (e: any) {
-        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            console.warn("Pełna pamięć! Usuwam najstarsze nagranie.");
-            const newHistory = [...history];
-            newHistory.pop(); 
-            setHistory(newHistory);
-        } else {
-            console.error("Błąd zapisu:", e);
-        }
-    }
-  }, [history]);
-
-  // --- 3. MOTYW ---
+  // --- 2. MOTYW ---
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
 
-  // --- FUNKCJE LOGICZNE ---
+  // --- FUNKCJE LOGICZNE (TERAZ Z INDEXEDDB) ---
 
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
     const defaults: {[key: string]: string} = { "A": "Rozmówca A", "B": "Rozmówca B" };
@@ -179,7 +228,7 @@ const [syncStartDate, setSyncStartDate] = useState('');
     return defaults[speakerKey] || `Rozmówca ${speakerKey}`;
   };
 
-  const handleSpeakerNameChange = (speakerKey: string, newName: string) => {
+  const handleSpeakerNameChange = async (speakerKey: string, newName: string) => {
     if (!selectedItem) return;
 
     const updatedItem = {
@@ -190,18 +239,26 @@ const [syncStartDate, setSyncStartDate] = useState('');
         }
     };
 
+    // Update UI
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
+    
+    // Auto-save do DB
+    await dbSave(updatedItem);
   };
 
-  // Usuwanie
   const confirmDelete = (id: string) => {
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (!itemToDelete) return;
+    
+    // Delete from DB
+    await dbDelete(itemToDelete);
+    
+    // Update UI
     setHistory(prev => prev.filter(item => item.id !== itemToDelete));
     if (selectedItem?.id === itemToDelete) {
       setSelectedItem(null);
@@ -210,12 +267,16 @@ const [syncStartDate, setSyncStartDate] = useState('');
     setItemToDelete(null);
   };
 
-  const saveNewTitle = () => {
+  const saveNewTitle = async () => {
     if (!selectedItem || !editedTitle.trim()) { setIsEditingTitle(false); return; }
     const updatedItem = { ...selectedItem, title: editedTitle };
+    
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
     setIsEditingTitle(false);
+    
+    // Auto-save do DB
+    await dbSave(updatedItem);
   };
 
   // --- UPLOAD ---
@@ -236,6 +297,10 @@ const [syncStartDate, setSyncStartDate] = useState('');
             utterances: result.utterances,
             speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
+          
+          // Zapis do DB
+          await dbSave(newItem);
+
           setHistory(prev => {
              if (prev.some(item => item.id === newItem.id)) return prev;
              return [newItem, ...prev];
@@ -305,26 +370,22 @@ const [syncStartDate, setSyncStartDate] = useState('');
     setIsDragging(false);
   };
 
-  // --- SYNCHRONIZACJA Z CHMURĄ 
+  // --- SYNCHRONIZACJA Z CHMURĄ (BEZ LIMITU PAMIĘCI) ---
   const syncWithCloud = async () => {
-    
-    
     if (!apiKey) return;
     
-    // 1. Zamykamy ustawienia i czyścimy stany
     setIsSettingsOpen(false);
     setIsProcessing(true);
     setSyncProgress(null); 
 
     try {
-        // Pobieramy listę (limit 100, żeby mieć z czego filtrować datami)
         const response = await fetch('https://api.assemblyai.com/v2/transcript?limit=100&status=completed', {
             headers: { 'Authorization': apiKey }
         });
         const data = await response.json();
         
         if (data.transcripts && Array.isArray(data.transcripts)) {
-            // 2. Filtrowanie po dacie (jeśli ustawiono)
+            // Filtrowanie Datami
             let filteredList = data.transcripts;
             
             if (syncStartDate) {
@@ -332,32 +393,25 @@ const [syncStartDate, setSyncStartDate] = useState('');
                 filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() >= start);
             }
             if (syncEndDate) {
-                // Ustawiamy koniec dnia (23:59:59), żeby łapało też dzisiejsze
                 const end = new Date(syncEndDate);
                 end.setHours(23, 59, 59, 999);
                 filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() <= end.getTime());
             }
 
-            // 3. Sprawdzamy, czego nam brakuje
             const missingTranscripts = filteredList.filter((remoteItem: any) => 
                 !history.some(localItem => localItem.id === remoteItem.id)
             );
 
             if (missingTranscripts.length === 0) {
-                setInfoModal({ isOpen: true, title: 'Info', message: 'Brak nowych nagrań w wybranym zakresie dat.' });
+                setInfoModal({ isOpen: true, title: 'Info', message: 'Brak nowych nagrań w wybranym zakresie.' });
                 setIsProcessing(false);
                 return;
             }
 
-            // Ustawiamy licznik
             setSyncProgress({ current: 0, total: missingTranscripts.length });
             let addedCount = 0;
-            let memoryFull = false;
 
             for (let i = 0; i < missingTranscripts.length; i++) {
-                // Jeśli pamięć pełna, przerywamy pętlę
-                if (memoryFull) break;
-
                 const item = missingTranscripts[i];
                 setSyncProgress({ current: i + 1, total: missingTranscripts.length });
 
@@ -381,37 +435,26 @@ const [syncStartDate, setSyncStartDate] = useState('');
                         speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
                     };
                     
-                    // PRÓBA ZAPISU (Zabezpieczenie przed limitem)
-                    try {
-                        setHistory(prev => {
-                            if (prev.some(p => p.id === newItem.id)) return prev;
-                            // Sortowanie: Najnowsze na górę (b - a)
-                            const updated = [newItem, ...prev];
-                            return updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                        });
-                        addedCount++;
-                    } catch (storageError) {
-                        console.error("Memory limit reached");
-                        memoryFull = true;
-                    }
+                    // ZAPIS DO INDEXEDDB (Brak limitu 5MB!)
+                    await dbSave(newItem);
+
+                    setHistory(prev => {
+                        if (prev.some(p => p.id === newItem.id)) return prev;
+                        const updated = [newItem, ...prev];
+                        return updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    });
+                    addedCount++;
                     
                 } catch (err) {
                     console.error("Błąd sieci:", item.id);
                 }
             }
             
-            // Koniec - Raport
             setSyncProgress(null);
-            
-            let msg = `Pobrano ${addedCount} nagrań.`;
-            if (memoryFull) {
-                msg += ` Przerwano z powodu braku miejsca w przeglądarce (limit pamięci).`;
-            }
-            
             setInfoModal({ 
                 isOpen: true, 
-                title: memoryFull ? 'Pamięć pełna' : 'Sukces', 
-                message: msg 
+                title: 'Sukces', 
+                message: `Pobrano ${addedCount} nagrań do bazy lokalnej.` 
             });
         }
     } catch (e) {
@@ -420,91 +463,8 @@ const [syncStartDate, setSyncStartDate] = useState('');
         setIsProcessing(false);
         setSyncProgress(null);
     }
-
-    // --- OBSŁUGA DYSKU (ZAPIS/ODCZYT PLIKU) ---
-  const saveToDisk = () => {
-    const dataStr = JSON.stringify(history, null, 2); // Ładne formatowanie
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = `lasto_archiwum_${new Date().toISOString().slice(0,10)}.json`;
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
-  const loadFromDisk = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const imported = JSON.parse(e.target?.result as string);
-            if (Array.isArray(imported)) {
-                // Scalamy obecne z nowymi (bez duplikatów)
-                setHistory(prev => {
-                    const combined = [...imported, ...prev];
-                    const unique = combined.filter((item, index, self) => 
-                        index === self.findIndex((t) => t.id === item.id)
-                    );
-                    return unique.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                });
-                alert(`Wczytano ${imported.length} nagrań z pliku.`);
-                setIsSettingsOpen(false); // Zamykamy okno
-            } else {
-                alert("Nieprawidłowy format pliku.");
-            }
-        } catch (err) {
-            alert("Błąd odczytu pliku.");
-        }
-    };
-    reader.readAsText(file);
-  };
-  };
-
-  // --- OBSŁUGA DYSKU (ZAPIS/ODCZYT PLIKU) ---
-  const saveToDisk = () => {
-    const dataStr = JSON.stringify(history, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = `lasto_archiwum_${new Date().toISOString().slice(0,10)}.json`;
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const loadFromDisk = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const imported = JSON.parse(e.target?.result as string);
-            if (Array.isArray(imported)) {
-                setHistory(prev => {
-                    // Scalamy i usuwamy duplikaty po ID
-                    const combined = [...imported, ...prev];
-                    const unique = combined.filter((item, index, self) => 
-                        index === self.findIndex((t: any) => t.id === item.id)
-                    );
-                    // Sortujemy od najnowszych
-                    return unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                });
-                // Zamykamy okno i pokazujemy info
-                setIsSettingsOpen(false);
-                setInfoModal({ isOpen: true, title: 'Sukces', message: `Wczytano ${imported.length} nagrań z pliku.` });
-            } else {
-                alert("Nieprawidłowy format pliku.");
-            }
-        } catch (err) {
-            alert("Błąd odczytu pliku.");
-        }
-    };
-    reader.readAsText(file);
-  };
   // --- LOGIKA SWIFT (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
@@ -551,7 +511,6 @@ const [syncStartDate, setSyncStartDate] = useState('');
                   selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
                 }`}
               >
-                {/* PRZYCISK USUWANIA (X) */}
                 <div 
                   onClick={(e) => { 
                     e.stopPropagation(); 
@@ -619,7 +578,9 @@ const [syncStartDate, setSyncStartDate] = useState('');
                   <div className="flex flex-col items-center space-y-3 animate-in fade-in zoom-in duration-300">
                      <div className="w-6 h-6 border-2 border-gray-300 border-t-black dark:border-gray-700 dark:border-t-white rounded-full animate-spin"/>
                      <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">
-                        {status || 'Przetwarzanie...'}
+                        {syncProgress 
+                           ? `Pobieranie ${syncProgress.current} z ${syncProgress.total}...`
+                           : (status || 'Przetwarzanie...')}
                      </span>
                   </div>
                 ) : !apiKey ? (
@@ -725,7 +686,7 @@ const [syncStartDate, setSyncStartDate] = useState('');
         <div className="absolute bottom-6 right-8 flex items-center space-x-4 pointer-events-none select-none z-0">
             <div className="flex items-center space-x-1.5 opacity-40">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-[9px] uppercase tracking-widest text-gray-400 font-medium">Auto-save on</span>
+                <span className="text-[9px] uppercase tracking-widest text-gray-400 font-medium">Auto-save on (DB)</span>
             </div>
 
             <div className="text-[10px] text-gray-200 dark:text-gray-800 uppercase tracking-widest flex items-center space-x-3">
@@ -758,7 +719,7 @@ const [syncStartDate, setSyncStartDate] = useState('');
             <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
             
             <div className="space-y-8">
-                {/* INSTRUKCJA DLA NOWYCH UŻYTKOWNIKÓW */}
+                {/* INSTRUKCJA */}
                 {!apiKey && (
                     <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm space-y-3">
                         <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-500 font-medium">
@@ -800,9 +761,6 @@ const [syncStartDate, setSyncStartDate] = useState('');
                             </svg>
                         </div>
                     </div>
-                    <p className="text-[9px] text-gray-400 leading-tight">
-                        Wskazówka: Zezwól przeglądarce na zapisanie tego klucza jako hasła, aby nie wpisywać go ponownie po czyszczeniu historii.
-                    </p>
                 </form>
 
                 <div className="space-y-3">
@@ -825,7 +783,6 @@ const [syncStartDate, setSyncStartDate] = useState('');
                     </div>
                 </div>
 
-                {/* SEKCJA CHMURY */}
                 {/* SEKCJA: CHMURA (ASSEMBLY AI) */}
                 <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Pobierz z AssemblyAI</label>
@@ -863,24 +820,6 @@ const [syncStartDate, setSyncStartDate] = useState('');
                         <span>Pobierz wybrane</span>
                     </button>
                 </div>
-
-                {/* SEKCJA: MÓJ DYSK (IMPORT/EXPORT) */}
-                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={saveToDisk}
-                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                        >
-                            <span>Zapisz na dysk</span>
-                        </button>
-                        
-                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
-                            <span>Wczytaj z dysku</span>
-                            <input type="file" className="hidden" accept=".json" onChange={loadFromDisk} />
-                        </label>
-                    </div>
-                </div>
             </div>
 
             <button 
@@ -911,7 +850,7 @@ const [syncStartDate, setSyncStartDate] = useState('');
             <div className="space-y-2">
                 <h3 className="text-xl font-medium dark:text-white">Usunąć nagranie?</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Tej operacji nie można cofnąć. Nagranie zostanie trwale usunięte z pamięci przeglądarki.
+                    Tej operacji nie można cofnąć.
                 </p>
             </div>
 
