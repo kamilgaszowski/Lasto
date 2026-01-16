@@ -605,13 +605,38 @@ export default function LastoWeb() {
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
                         Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
                     </label>
-                    <input 
-                        type="password" 
-                        className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400" 
-                        value={apiKey} 
-                        onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
-                        placeholder="Wklej klucz..." 
-                    />
+                   <form 
+                    className="space-y-3"
+                    onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
+                >
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
+                    </label>
+                    
+                    {/* Trik dla menedżera haseł: Ukryte pole username */}
+                    <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
+
+                    <div className="relative">
+                        <input 
+                            type="password" 
+                            name="password" // Przeglądarka potraktuje to jako hasło
+                            autoComplete="current-password"
+                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400 pr-10" 
+                            value={apiKey} 
+                            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                            placeholder="Wklej klucz..." 
+                        />
+                        {/* Ikona kłódki sugerująca bezpieczeństwo */}
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p className="text-[9px] text-gray-400 leading-tight">
+                        Wskazówka: Zezwól przeglądarce na zapisanie tego klucza jako hasła, aby nie wpisywać go ponownie po czyszczeniu historii.
+                    </p>
+                </form>
                 </div>
 
                 <div className="space-y-3">
@@ -637,8 +662,14 @@ export default function LastoWeb() {
               
             </div>
 
-            <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium">Gotowe</button>
-          </div>
+<button 
+                id="save-btn" // Dodane ID
+                onClick={() => setIsSettingsOpen(false)} 
+                className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium"
+            >
+                Gotowe
+            </button>  
+                    </div>
         </div>
       )}
       {/* MODAL POTWIERDZENIA USUWANIA */}
