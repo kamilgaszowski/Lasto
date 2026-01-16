@@ -182,10 +182,11 @@ export default function LastoWeb() {
   const [editedTitle, setEditedTitle] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // Stany powiadomień (badges)
-  const [showCopyBadge, setShowCopyBadge] = useState(false);
-  const [showSaveBadge, setShowSaveBadge] = useState(false);
-  const [showSyncBadge, setShowSyncBadge] = useState<{show: boolean, msg: string}>({show: false, msg: ''});
+  // Stany chwilowych zmian przycisków
+  const [copyState, setCopyState] = useState(false);
+  const [saveState, setSaveState] = useState(false);
+  const [pobierzState, setPobierzState] = useState(false);
+  const [wyslijState, setWyslijState] = useState(false);
 
   const deleteModalRef = useRef<HTMLDivElement>(null);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
@@ -382,7 +383,7 @@ export default function LastoWeb() {
     if (file && apiKey) processFile(file);
   };
 
-  // --- MANUALNA SYNCHRONIZACJA (Z POWIADOMIENIAMI) ---
+  // --- MANUALNA SYNCHRONIZACJA ---
   const saveToCloud = async () => {
     if (!pantryId || !apiKey) {
         setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Upewnij się, że wpisałeś oba klucze w ustawieniach.' });
@@ -398,10 +399,15 @@ export default function LastoWeb() {
                 body: JSON.stringify({ [`chunk_${Math.floor(i/CHUNK_SIZE)}`]: compressedHistory.slice(i, i + CHUNK_SIZE), manifest: { totalChunks: Math.ceil(compressedHistory.length/CHUNK_SIZE), timestamp: Date.now() } })
             });
         }
-        setShowSyncBadge({show: true, msg: 'Wysłano'});
-        setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
-        setShowSaveBadge(true); // Jeśli kliknięte z edycji
-        setTimeout(() => setShowSaveBadge(false), 2000);
+        
+        // Zmiana stanów przycisków
+        setWyslijState(true);
+        setSaveState(true);
+        setTimeout(() => {
+            setWyslijState(false);
+            setSaveState(false);
+        }, 2000);
+
     } catch (e: any) { 
         setInfoModal({ isOpen: true, title: 'Błąd', message: e.message }); 
     }
@@ -425,14 +431,13 @@ export default function LastoWeb() {
              const remoteHistory = decompressHistory(remoteCompressed);
              setHistory(prev => {
                 const newItems = remoteHistory.filter(r => !prev.some(l => l.id === r.id));
-                if (newItems.length === 0) { 
-                    setShowSyncBadge({show: true, msg: 'Aktualne'});
-                    setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
-                    return prev; 
-                }
+                
+                setPobierzState(true);
+                setTimeout(() => setPobierzState(false), 2000);
+
+                if (newItems.length === 0) return prev; 
+
                 newItems.forEach(async (item) => await dbSave(item));
-                setShowSyncBadge({show: true, msg: `Pobrano ${newItems.length}`});
-                setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
                 return [...newItems, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             });
             setIsSettingsOpen(false);
@@ -520,8 +525,8 @@ export default function LastoWeb() {
   const copyToClipboard = () => {
     if (!selectedItem) return;
     navigator.clipboard.writeText(getDisplayText(selectedItem));
-    setShowCopyBadge(true);
-    setTimeout(() => setShowCopyBadge(false), 2000);
+    setCopyState(true);
+    setTimeout(() => setCopyState(false), 2000);
   };
 
   return (
@@ -536,13 +541,31 @@ export default function LastoWeb() {
           </div>
 
           <div className="px-6 pb-6 flex space-x-2 relative">
-              {showSyncBadge.show && (
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black text-[9px] px-2 py-1 rounded-full font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 z-50">
-                  {showSyncBadge.msg}
-                </div>
-              )}
-              <button onClick={loadFromCloud} disabled={!pantryId || isProcessing} className="flex-1 py-2 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] uppercase font-bold tracking-wider hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg><span>Pobierz</span></button>
-              <button onClick={saveToCloud} disabled={!pantryId || isProcessing} className="flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] uppercase font-bold tracking-wider hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg><span>Wyślij</span></button>
+              <button 
+                onClick={loadFromCloud} 
+                disabled={!pantryId || isProcessing} 
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center space-x-2 ${
+                    pobierzState 
+                    ? 'bg-black dark:bg-white text-white dark:text-black' 
+                    : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'
+                }`}
+              >
+                {!pobierzState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>}
+                <span>{pobierzState ? 'Pobrano' : 'Pobierz'}</span>
+              </button>
+
+              <button 
+                onClick={saveToCloud} 
+                disabled={!pantryId || isProcessing} 
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center space-x-2 ${
+                    wyslijState 
+                    ? 'bg-black dark:bg-white text-white dark:text-black' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200'
+                }`}
+              >
+                {!wyslijState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>}
+                <span>{wyslijState ? 'Wysłano' : 'Wyślij'}</span>
+              </button>
           </div>
 
           <div className="flex-1 flex flex-col overflow-y-auto px-4 space-y-1">
@@ -571,7 +594,6 @@ export default function LastoWeb() {
              {!isSidebarOpen && (
                <button onClick={() => setIsSidebarOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white transition-colors cursor-pointer"><RuneArrowRight /></button>
              )}
-             {/* Napis Lasto widoczny tylko w widoku nagrania */}
              {selectedItem && (
                <button onClick={() => setSelectedItem(null)} className={`relative z-40 text-3xl font-thin tracking-tighter transition-all duration-300 text-gray-400 hover:text-black dark:hover:text-white`}>Lasto</button>
              )}
@@ -583,7 +605,6 @@ export default function LastoWeb() {
           {!selectedItem ? (
             <div className="text-center space-y-12 animate-in fade-in zoom-in duration-700">
               <div className="space-y-6">
-                {/* Duży napis Lasto na ekranie głównym */}
                 <div className="text-9xl font-thin tracking-tighter text-gray-900 dark:text-white transition-colors">Lasto</div>
                 <div className="flex items-center justify-center space-x-6 text-xl font-light text-gray-400">
                     <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
@@ -626,12 +647,21 @@ export default function LastoWeb() {
                     </div>
                     
                     <div className="relative ml-auto">
-                        {showSaveBadge && (
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black text-[10px] px-3 py-1.5 rounded-full font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 z-50">Zapisano</div>
-                        )}
-                        <button onClick={saveToCloud} disabled={!pantryId || isProcessing} className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2">
-                            {isProcessing ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>}
-                            <span>Zapisz</span>
+                        <button 
+                            onClick={saveToCloud} 
+                            disabled={!pantryId || isProcessing} 
+                            className={`px-5 py-3 rounded-xl text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 transition-all ${
+                                saveState 
+                                ? 'bg-black dark:bg-white text-white dark:text-black' 
+                                : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'
+                            }`}
+                        >
+                            {isProcessing ? (
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : !saveState && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>
+                            )}
+                            <span>{saveState ? 'Zapisano' : 'Zapisz'}</span>
                         </button>
                     </div>
                   </div>
@@ -643,10 +673,17 @@ export default function LastoWeb() {
               </div>
               <textarea className="flex-1 w-full p-8 bg-gray-100/40 dark:bg-gray-900/40 dark:text-gray-200 rounded-2xl font-mono text-sm leading-relaxed border-none focus:ring-0 resize-none selection:bg-blue-50 dark:selection:bg-blue-900" value={getDisplayText(selectedItem)} readOnly />
               <div className="flex items-center justify-end pt-2 relative">
-                {showCopyBadge && (
-                  <div className="absolute -top-10 right-0 bg-black dark:bg-white text-white dark:text-black text-[10px] px-3 py-1.5 rounded-full font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2">Skopiowano</div>
-                )}
-                <button onClick={copyToClipboard} className="px-5 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-50 transition-colors text-[10px] uppercase tracking-widest font-medium flex items-center space-x-2"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg><span>Kopiuj tekst</span></button>
+                <button 
+                    onClick={copyToClipboard} 
+                    className={`px-5 py-3 rounded-xl border transition-all text-[10px] uppercase tracking-widest font-medium flex items-center space-x-2 ${
+                        copyState 
+                        ? 'bg-black dark:bg-white text-white dark:text-black border-transparent' 
+                        : 'border-gray-200 dark:border-gray-800 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-50'
+                    }`}
+                >
+                    {!copyState && <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>}
+                    <span>{copyState ? 'Skopiowano' : 'Kopiuj tekst'}</span>
+                </button>
               </div>
             </div>
           )}
