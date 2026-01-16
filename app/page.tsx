@@ -256,6 +256,43 @@ useEffect(() => {
   }, [isDeleteModalOpen, isDeleteAllModalOpen]);
 
   // --- FUNKCJE LOGICZNE ---
+  const exportKeys = () => {
+    const keys = {
+      assemblyAIKey: apiKey,
+      pantryId: pantryId
+    };
+    const blob = new Blob([JSON.stringify(keys, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `lasto_keys_backup.json`;
+    link.href = url;
+    link.click();
+  };
+
+  const importKeys = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target?.result as string);
+        if (imported.assemblyAIKey || imported.pantryId) {
+          if (imported.assemblyAIKey) {
+            setApiKey(imported.assemblyAIKey);
+            localStorage.setItem('assemblyAIKey', imported.assemblyAIKey);
+          }
+          if (imported.pantryId) {
+            setPantryId(imported.pantryId);
+            localStorage.setItem('pantryId', imported.pantryId);
+          }
+          setInfoModal({ isOpen: true, title: 'Sukces', message: 'Klucze zostały zaimportowane.' });
+        }
+      } catch (err) {
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nieprawidłowy format pliku kluczy.' });
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
     const defaults: {[key: string]: string} = { "A": "Rozmówca A", "B": "Rozmówca B" };
@@ -715,16 +752,9 @@ useEffect(() => {
              )}
              
              {/* PRZYCISK HOME - Zawsze klikalny, gdy widoczny */}
-             <button 
-                onClick={() => setSelectedItem(null)} 
-                className={`text-3xl font-thin tracking-tighter transition-all duration-300 hover:text-black dark:hover:text-white ${
-                  selectedItem 
-                    ? 'text-gray-400' 
-                    : 'text-gray-900 dark:text-white'
-                }`}
-             >
-                Lasto
-             </button>
+             {selectedItem && (
+               <button onClick={() => setSelectedItem(null)} className="relative z-30 text-3xl font-thin tracking-tighter text-gray-400 hover:text-black dark:hover:text-white transition-colors">Lasto</button>
+             )}
           </div>
 
           <div className="flex flex-col items-end space-y-2">
@@ -956,6 +986,21 @@ useEffect(() => {
                         setIsSettingsOpen(false); 
                     }}
                 >
+                  <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup kluczy</label>
+    <div className="grid grid-cols-2 gap-3">
+        <button 
+            onClick={exportKeys}
+            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+        >
+            Zapisz klucze
+        </button>
+        <label className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">
+            Wczytaj klucze
+            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
+        </label>
+    </div>
+</div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucze dostępowe</label>
                     
                     {/* AssemblyAI */}
