@@ -329,17 +329,31 @@ export default function LastoWeb() {
   };
 
   // --- UPLOAD (ASSEMBLY AI) ---
-  const checkStatus = async (id: string, fileName: string) => {
+ const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { headers: { 'Authorization': apiKey } });
+        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { 
+          headers: { 'Authorization': apiKey } 
+        });
         if (!res.ok) return;
         const result = await res.json();
+
         if (result.status === 'completed') {
           clearInterval(interval);
+          
+          // POPRAWKA: Tworzymy unikalne ID łącząc ID z AssemblyAI i aktualnym czasem
+          // Zapobiegnie to duplikatom, które "sklejają" się w UI
+          const uniqueId = `${id}-${Date.now()}`;
+
           const newItem: HistoryItem = {
-            id: id, title: fileName, date: new Date().toISOString(), content: result.text, utterances: result.utterances, speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
+            id: uniqueId, 
+            title: fileName, 
+            date: new Date().toISOString(), 
+            content: result.text, 
+            utterances: result.utterances, 
+            speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
+          
           await dbSave(newItem);
           setHistory(prev => {
              const updated = [newItem, ...prev];
@@ -349,11 +363,17 @@ export default function LastoWeb() {
           setSelectedItem(newItem);
           setIsProcessing(false);
           setStatus('');
-        } else if (result.status === 'error') { clearInterval(interval); setStatus('Błąd'); setIsProcessing(false); }
-      } catch (err) { clearInterval(interval); setIsProcessing(false); }
+        } else if (result.status === 'error') { 
+          clearInterval(interval); 
+          setStatus('Błąd AI'); 
+          setIsProcessing(false); 
+        }
+      } catch (err) { 
+        clearInterval(interval); 
+        setIsProcessing(false); 
+      }
     }, 3000);
   };
-  
   const processFile = async (file: File) => {
     if (!apiKey) return;
     setIsProcessing(true);
