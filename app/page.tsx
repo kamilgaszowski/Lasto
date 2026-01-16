@@ -553,14 +553,14 @@ export default function LastoWeb() {
         </div>
       </div>
 
-      {/* MODAL USTAWIEŃ */}
+     {/* MODAL USTAWIEŃ */}
       {isSettingsOpen && (
         <div 
             className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
             onClick={() => setIsSettingsOpen(false)}
         >
           <div 
-            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md space-y-8 relative"
+            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md space-y-8 relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()} 
           >
             <button 
@@ -571,25 +571,39 @@ export default function LastoWeb() {
             </button>
 
             <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
-            {/* INSTRUKCJA DLA NOWYCH UŻYTKOWNIKÓW */}
-            {!apiKey && (
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm space-y-3">
-                    <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-500 font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-                        </svg>
-                        <span>Jak zacząć?</span>
-                    </div>
-                    <ol className="list-decimal list-inside text-gray-600 dark:text-gray-400 space-y-1 ml-1 leading-relaxed">
-                        <li>Wejdź na stronę <a href="https://www.assemblyai.com/dashboard" target="_blank" className="underline text-black dark:text-white font-medium">AssemblyAI</a>.</li>
-                        <li>Zarejestruj się (jest darmowe).</li>
-                        <li>Skopiuj klucz z sekcji <b>API Keys</b>.</li>
-                        <li>Wklej go w polu poniżej.</li>
-                    </ol>
-                </div>
-            )}
             
-            <div className="space-y-6">
+            <div className="space-y-8">
+                {/* INSTRUKCJA DLA NOWYCH UŻYTKOWNIKÓW */}
+                {!apiKey && (
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm space-y-3">
+                        <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-500 font-medium">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                            </svg>
+                            <span>Jak zacząć?</span>
+                        </div>
+                        <ol className="list-decimal list-inside text-gray-600 dark:text-gray-400 space-y-1 ml-1 leading-relaxed">
+                            <li>Wejdź na stronę <a href="https://www.assemblyai.com/dashboard" target="_blank" className="underline text-black dark:text-white font-medium">AssemblyAI</a>.</li>
+                            <li>Zarejestruj się (jest darmowe).</li>
+                            <li>Skopiuj klucz z sekcji <b>API Keys</b>.</li>
+                            <li>Wklej go w polu poniżej.</li>
+                        </ol>
+                    </div>
+                )}
+
+                <div className="space-y-3">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
+                    </label>
+                    <input 
+                        type="password" 
+                        className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400" 
+                        value={apiKey} 
+                        onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                        placeholder="Wklej klucz..." 
+                    />
+                </div>
+
                 <div className="space-y-3">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Motyw</label>
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
@@ -610,15 +624,65 @@ export default function LastoWeb() {
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <label className="text-[10px] font-bold text-gray-400 tracking-[0.2em]">Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a></label>
-                    <input 
-                        type="password" 
-                        className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400" 
-                        value={apiKey} 
-                        onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
-                        placeholder="Wklej klucz..." 
-                    />
+                {/* NOWA SEKCJA: KOPIA ZAPASOWA */}
+                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Zarządzanie danymi</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* PRZYCISK EKSPORTU */}
+                        <button 
+                            onClick={() => {
+                                const dataStr = JSON.stringify({ apiKey, history });
+                                const blob = new Blob([dataStr], { type: "application/json" });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.download = `lasto_backup_${new Date().toISOString().slice(0,10)}.json`;
+                                link.href = url;
+                                link.click();
+                            }}
+                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            <span>Pobierz kopię</span>
+                        </button>
+
+                        {/* PRZYCISK IMPORTU */}
+                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                            <span>Wgraj kopię</span>
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                accept=".json"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                        try {
+                                            const importedData = JSON.parse(event.target?.result as string);
+                                            if (importedData.apiKey) {
+                                                setApiKey(importedData.apiKey);
+                                                localStorage.setItem('assemblyAIKey', importedData.apiKey);
+                                            }
+                                            if (importedData.history && Array.isArray(importedData.history)) {
+                                                setHistory(importedData.history);
+                                                // Tutaj useEffect sam zapisze historię do localStorage
+                                            }
+                                            alert("Dane zostały pomyślnie przywrócone!");
+                                            setIsSettingsOpen(false);
+                                        } catch (err) {
+                                            alert("Błąd: Nieprawidłowy plik kopii zapasowej.");
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }} 
+                            />
+                        </label>
+                    </div>
                 </div>
             </div>
 
