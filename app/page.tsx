@@ -305,7 +305,7 @@ export default function LastoWeb() {
     setIsDragging(false);
   };
 
-  // --- KLUCZOWA ZMIANA: TŁUMACZENIE LOGIKI SWIFT (isJunk) NA JS ---
+
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
 
@@ -433,26 +433,38 @@ export default function LastoWeb() {
                      <div className="w-6 h-6 border-2 border-gray-300 border-t-black dark:border-gray-700 dark:border-t-white rounded-full animate-spin"/>
                      <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">Przetwarzanie...</span>
                   </div>
+                ) : !apiKey ? (
+                  /* NOWY STAN: BRAK KLUCZA -> PRZYCISK PROWADZĄCY DO USTAWIEŃ */
+                  <div className="flex flex-col items-center space-y-4">
+                    <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="bg-black dark:bg-white dark:text-black text-white px-10 py-5 rounded-full transition-all hover:scale-105 shadow-xl font-medium animate-bounce-slow"
+                    >
+                        Dodaj pierwsze nagranie
+                    </button>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400">
+                        Wymagana konfiguracja
+                    </p>
+                  </div>
                 ) : (
-                  /* 2. Przycisk widoczny TYLKO gdy nie przetwarza */
+                  /* STAN NORMALNY: JEST KLUCZ -> PRZYCISK UPLOADU */
                   <>
-                  <label 
-                        /* DODANE ZDARZENIA DRAG & DROP */
+                    <label 
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
-                        
-                        /* ZMIENIONE STYLE (REAKCJA NA DRAG) */
                         className={`group relative cursor-pointer px-12 py-5 rounded-full transition-all shadow-xl flex flex-col items-center justify-center border-2 
                         ${isDragging 
-                            ? 'bg-gray-800 text-white scale-110 border-white border-dashed' // Styl gdy przeciągasz
-                            : 'bg-black dark:bg-white dark:text-black text-white border-transparent hover:scale-105 active:scale-95' // Styl normalny
+                            ? 'bg-gray-800 text-white scale-110 border-white border-dashed' 
+                            : 'bg-black dark:bg-white dark:text-black text-white border-transparent hover:scale-105 active:scale-95'
                         }`}
                     >
                       {isDragging ? 'Upuść tutaj!' : 'Importuj nagranie'}
                       <input type="file" className="hidden" accept="audio/*" onChange={handleFileInput} />
                     </label>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-600">WAV • MP3 • M4A</p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-600 mt-4">
+                        {isDragging ? '...' : 'WAV • MP3 • M4A'}
+                    </p>
                   </>
                 )}
               </div>
@@ -559,6 +571,23 @@ export default function LastoWeb() {
             </button>
 
             <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
+            {/* INSTRUKCJA DLA NOWYCH UŻYTKOWNIKÓW */}
+            {!apiKey && (
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm space-y-3">
+                    <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-500 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                        </svg>
+                        <span>Jak zacząć?</span>
+                    </div>
+                    <ol className="list-decimal list-inside text-gray-600 dark:text-gray-400 space-y-1 ml-1 leading-relaxed">
+                        <li>Wejdź na stronę <a href="https://www.assemblyai.com/dashboard" target="_blank" className="underline text-black dark:text-white font-medium">AssemblyAI</a>.</li>
+                        <li>Zarejestruj się (jest darmowe).</li>
+                        <li>Skopiuj klucz z sekcji <b>API Keys</b>.</li>
+                        <li>Wklej go w polu poniżej.</li>
+                    </ol>
+                </div>
+            )}
             
             <div className="space-y-6">
                 <div className="space-y-3">
