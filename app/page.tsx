@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 // --- MODELE DANYCH ---
 interface Utterance {
@@ -21,12 +21,13 @@ interface HistoryItem {
   speakerNames?: SpeakerMap;
 }
 
-// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH) ---
+// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH - BRAK LIMITU 5MB) ---
 const DB_NAME = 'LastoDB';
 const STORE_NAME = 'recordings';
 const DB_VERSION = 1;
 
 const openDB = (): Promise<IDBDatabase> => {
+  if (typeof window === 'undefined') return Promise.reject("Server side");
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (event) => {
@@ -138,13 +139,16 @@ const InfoIcon = () => (
 export default function LastoWeb() {
   // --- STAN APLIKACJI ---
   const [apiKey, setApiKey] = useState('');
+  const [jsonBinSecret, setJsonBinSecret] = useState('');
+  const [jsonBinId, setJsonBinId] = useState('');
+
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  // Nowe stany (Sync & Dates)
+  // Stany synchronizacji
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [syncStartDate, setSyncStartDate] = useState('');
   const [syncEndDate, setSyncEndDate] = useState('');
@@ -166,34 +170,37 @@ export default function LastoWeb() {
   
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // --- 1. ODCZYT DANYCH (MIGRACJA Z LOCALSTORAGE -> INDEXEDDB) ---
+  // --- 1. ODCZYT DANYCH (Z AUTO-MIGRACJĄ LOCALSTORAGE -> INDEXEDDB) ---
   useEffect(() => {
-    const savedKey = localStorage.getItem('assemblyAIKey') || '';
-    setApiKey(savedKey);
+    // Odczyt kluczy z LocalStorage (klucze zostają w LS, bo są małe)
+    setApiKey(localStorage.getItem('assemblyAIKey') || '');
+    setJsonBinSecret(localStorage.getItem('jsonBinSecret') || '');
+    setJsonBinId(localStorage.getItem('jsonBinId') || '');
 
-    // Persistence Check
     if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().then((granted) => console.log("Storage persistent:", granted));
     }
 
-    // Inicjalizacja Bazy i Ładowanie
+    // Inicjalizacja Bazy IndexedDB
     const initData = async () => {
         try {
-            // Sprawdź czy są stare dane w LocalStorage (Migracja)
+            // 1. Sprawdź czy są stare dane w LocalStorage (Migracja jednorazowa)
             const oldHistoryRaw = localStorage.getItem('lastoHistory');
             if (oldHistoryRaw) {
-                console.log("Migracja danych z LocalStorage do IndexedDB...");
-                const parsed = JSON.parse(oldHistoryRaw);
-                if (Array.isArray(parsed)) {
-                    for (const item of parsed) {
-                        await dbSave(item);
+                try {
+                    const parsed = JSON.parse(oldHistoryRaw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        console.log("Migracja danych z LocalStorage do IndexedDB...");
+                        for (const item of parsed) {
+                            await dbSave(item);
+                        }
                     }
-                }
-                // Wyczyść stare po udanej migracji
+                } catch(e) {}
+                // Wyczyść stare po migracji
                 localStorage.removeItem('lastoHistory');
             }
 
-            // Pobierz dane z IndexedDB
+            // 2. Pobierz dane z IndexedDB
             const items = await dbGetAll();
             // Sortowanie: Najnowsze na górze
             const sorted = items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -218,7 +225,7 @@ export default function LastoWeb() {
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
 
-  // --- FUNKCJE LOGICZNE (TERAZ Z INDEXEDDB) ---
+  // --- FUNKCJE LOGICZNE (DB) ---
 
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
     const defaults: {[key: string]: string} = { "A": "Rozmówca A", "B": "Rozmówca B" };
@@ -239,11 +246,9 @@ export default function LastoWeb() {
         }
     };
 
-    // Update UI
+    // Update UI & DB
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
-    
-    // Auto-save do DB
     await dbSave(updatedItem);
   };
 
@@ -274,12 +279,10 @@ export default function LastoWeb() {
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
     setIsEditingTitle(false);
-    
-    // Auto-save do DB
     await dbSave(updatedItem);
   };
 
-  // --- UPLOAD ---
+  // --- UPLOAD (ASSEMBLY AI) ---
   const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
@@ -298,7 +301,6 @@ export default function LastoWeb() {
             speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
           
-          // Zapis do DB
           await dbSave(newItem);
 
           setHistory(prev => {
@@ -319,7 +321,6 @@ export default function LastoWeb() {
   
   const processFile = async (file: File) => {
     if (!apiKey) return;
-    
     setIsProcessing(true);
     setStatus('Wysyłanie...');
 
@@ -370,7 +371,7 @@ export default function LastoWeb() {
     setIsDragging(false);
   };
 
-  // --- SYNCHRONIZACJA Z CHMURĄ (BEZ LIMITU PAMIĘCI) ---
+  // --- SYNCHRONIZACJA Z CHMURĄ (ASSEMBLY AI) ---
   const syncWithCloud = async () => {
     if (!apiKey) return;
     
@@ -435,7 +436,6 @@ export default function LastoWeb() {
                         speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
                     };
                     
-                    // ZAPIS DO INDEXEDDB (Brak limitu 5MB!)
                     await dbSave(newItem);
 
                     setHistory(prev => {
@@ -465,7 +465,117 @@ export default function LastoWeb() {
     }
   };
 
-  // --- LOGIKA SWIFT (isJunk) ---
+  // --- SYNCHRONIZACJA (JSONBIN.IO) ---
+  const saveToCloudBin = async () => {
+    if (!jsonBinSecret || !jsonBinId) {
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Wprowadź klucze JSONBin w ustawieniach!' });
+        return;
+    }
+    setIsProcessing(true);
+    try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${jsonBinId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': jsonBinSecret
+            },
+            body: JSON.stringify({ history: history })
+        });
+
+        if (res.ok) {
+            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano całą historię w chmurze JSONBin.' });
+        } else {
+            throw new Error('Błąd zapisu');
+        }
+    } catch (e) {
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nie udało się zapisać w chmurze.' });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const loadFromCloudBin = async () => {
+    if (!jsonBinSecret || !jsonBinId) return;
+    setIsProcessing(true);
+    try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${jsonBinId}/latest`, {
+            method: 'GET',
+            headers: { 'X-Master-Key': jsonBinSecret }
+        });
+        
+        const data = await res.json();
+        const remoteHistory = data.record.history;
+
+        if (Array.isArray(remoteHistory)) {
+             setHistory(prev => {
+                const combined = [...remoteHistory, ...prev];
+                const unique = combined.filter((item, index, self) => 
+                    index === self.findIndex((t: any) => t.id === item.id)
+                );
+                const sorted = unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                
+                // Zapisz wszystko do IndexedDB
+                sorted.forEach(async (item: HistoryItem) => await dbSave(item));
+                
+                return sorted;
+            });
+            setIsSettingsOpen(false);
+            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Pobrano i scalono historię z chmury.' });
+        }
+    } catch (e) {
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nie udało się pobrać danych.' });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  // --- OBSŁUGA DYSKU (PLIK) ---
+  const saveToDisk = () => {
+    const dataStr = JSON.stringify(history, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `lasto_archiwum_${new Date().toISOString().slice(0,10)}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loadFromDisk = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const imported = JSON.parse(e.target?.result as string);
+            if (Array.isArray(imported)) {
+                
+                // Zapisz do DB
+                for (const item of imported) {
+                    await dbSave(item);
+                }
+
+                setHistory(prev => {
+                    const combined = [...imported, ...prev];
+                    const unique = combined.filter((item, index, self) => 
+                        index === self.findIndex((t: any) => t.id === item.id)
+                    );
+                    return unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                });
+                setIsSettingsOpen(false);
+                setInfoModal({ isOpen: true, title: 'Sukces', message: `Wczytano ${imported.length} nagrań z pliku.` });
+            } else {
+                setInfoModal({ isOpen: true, title: 'Błąd', message: "Nieprawidłowy format pliku." });
+            }
+        } catch (err) {
+            setInfoModal({ isOpen: true, title: 'Błąd', message: "Błąd odczytu pliku." });
+        }
+    };
+    reader.readAsText(file);
+  };
+
+  // --- LOGIKA FILTROWANIA (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
 
@@ -820,6 +930,67 @@ export default function LastoWeb() {
                         <span>Pobierz wybrane</span>
                     </button>
                 </div>
+
+                {/* SEKCJA: PEŁNA SYNCHRONIZACJA (JSONBIN) */}
+                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                        Chmura synchronizacji (<a href="https://jsonbin.io/app/bins" target="_blank" className="underline">JSONBin.io</a>)
+                    </label>
+                    
+                    <div className="space-y-2">
+                        <input 
+                            type="password" 
+                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs"
+                            placeholder="Master Key (X-Master-Key)..."
+                            value={jsonBinSecret}
+                            onChange={(e) => { setJsonBinSecret(e.target.value); localStorage.setItem('jsonBinSecret', e.target.value); }}
+                        />
+                        <input 
+                            type="text" 
+                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs"
+                            placeholder="Bin ID (np. 65a4b...)"
+                            value={jsonBinId}
+                            onChange={(e) => { setJsonBinId(e.target.value); localStorage.setItem('jsonBinId', e.target.value); }}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={saveToCloudBin}
+                            disabled={!jsonBinId || isProcessing}
+                            className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                        >
+                            <span>⬆ Wyślij (Backup)</span>
+                        </button>
+                        
+                        <button 
+                            onClick={loadFromCloudBin}
+                            disabled={!jsonBinId || isProcessing}
+                            className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                        >
+                            <span>⬇ Pobierz (Sync)</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* SEKCJA: MÓJ DYSK (IMPORT/EXPORT) */}
+                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={saveToDisk}
+                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                        >
+                            <span>Zapisz na dysk</span>
+                        </button>
+                        
+                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
+                            <span>Wczytaj z dysku</span>
+                            <input type="file" className="hidden" accept=".json" onChange={loadFromDisk} />
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
             <button 
