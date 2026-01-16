@@ -466,18 +466,26 @@ export default function LastoWeb() {
   };
 
   // --- SYNCHRONIZACJA (JSONBIN.IO) ---
+ // --- SYNCHRONIZACJA (JSONBIN.IO) - WERSJA DEBUGUJĄCA ---
   const saveToCloudBin = async () => {
     if (!jsonBinSecret || !jsonBinId) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Wprowadź klucze JSONBin w ustawieniach!' });
+        setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Wprowadź Master Key i Bin ID w ustawieniach!' });
         return;
     }
+    
+    // Usuwamy spacje, jeśli przypadkiem się skopiowały
+    const cleanSecret = jsonBinSecret.trim();
+    const cleanId = jsonBinId.trim();
+
     setIsProcessing(true);
     try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${jsonBinId}`, {
+        console.log("Wysyłanie do:", `https://api.jsonbin.io/v3/b/${cleanId}`);
+        
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${cleanId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': jsonBinSecret
+                'X-Master-Key': cleanSecret
             },
             body: JSON.stringify({ history: history })
         });
@@ -485,10 +493,17 @@ export default function LastoWeb() {
         if (res.ok) {
             setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano całą historię w chmurze JSONBin.' });
         } else {
-            throw new Error('Błąd zapisu');
+            // TERAZ ODCZYTAMY DOKŁADNY BŁĄD Z SERWERA
+            const errorData = await res.json();
+            console.error("Błąd JSONBin:", errorData);
+            throw new Error(errorData.message || `Kod błędu: ${res.status}`);
         }
-    } catch (e) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nie udało się zapisać w chmurze.' });
+    } catch (e: any) {
+        setInfoModal({ 
+            isOpen: true, 
+            title: 'Wystąpił błąd', 
+            message: `Serwer odrzucił połączenie: ${e.message}` 
+        });
     } finally {
         setIsProcessing(false);
     }
