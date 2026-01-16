@@ -528,7 +528,7 @@ useEffect(() => {
             }
         }
 
-        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię w ${chunks.length} paczkach.` });
+        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię.` });
 
     } catch (e: any) {
         console.error("Błąd Pantry:", e);
@@ -979,68 +979,81 @@ useEffect(() => {
                 </div>
 
             {/* 2. KLUCZE API (FORMULARZ) */}
-                <form 
-                    className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800"
-                    onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}
-                >
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucze dostępowe</label>
-                    
-                    {/* AssemblyAI */}
-                    <div className="space-y-3">
-                        <label className="text-[11px] text-gray-500 dark:text-gray-400 uppercase ml-1">AssemblyAI Key</label>
-                        <input 
-                            type="password" 
-                            name="assembly-key"
-                            autoComplete="current-password"
-                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white" 
-                            value={apiKey} 
-                            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
-                            placeholder="Wklej klucz..." 
-                        />
-                        {!apiKey && (
-                          <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80 ml-1 leading-relaxed">
-                            💡 Wymagany do zamiany mowy na tekst. Pobierz go z dashboardu AssemblyAI.
-                          </p>
-                        )}
-                    </div>
+                {/* 2. KLUCZE API (FORMULARZ) */}
+<form 
+    className="space-y-8 pt-8 border-t border-gray-100 dark:border-gray-800"
+    onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}
+>
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Konfiguracja połączeń</label>
+    
+    {/* AssemblyAI */}
+    <div className="space-y-4">
+        <div className="flex justify-between items-end px-1">
+            <label className="text-[11px] font-semibold text-gray-500 uppercase">AssemblyAI Key</label>
+            <details className="group cursor-pointer">
+                <summary className="list-none text-[10px] text-indigo-500 hover:text-indigo-600 font-medium">Jak uzyskać klucz?</summary>
+                <div className="absolute left-10 right-10 mt-2 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-[11px] leading-relaxed text-indigo-900 dark:text-indigo-300 z-50 shadow-xl border border-indigo-100 dark:border-indigo-900/50 animate-in fade-in slide-in-from-top-2">
+                    1. Załóż konto na <a href="https://www.assemblyai.com/" target="_blank" className="underline font-bold">AssemblyAI</a><br/>
+                    2. Przejdź do 'Dashboard'<br/>
+                    3. Skopiuj 'Your API Key'<br/>
+                    <p className="mt-2 opacity-70 italic">* Klucz pozwala na zamianę mowy na tekst (transkrypcję).</p>
+                </div>
+            </details>
+        </div>
+        <input 
+            type="password" 
+            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all" 
+            value={apiKey} 
+            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+            placeholder="Wklej klucz AssemblyAI..." 
+        />
+    </div>
 
-                    {/* Pantry Cloud */}
-                    <div className="space-y-3">
-                        <label className="text-[11px] text-gray-500 dark:text-gray-400 uppercase ml-1">Pantry ID (Synchronizacja)</label>
-                        <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
-                        <input 
-                            type="password" 
-                            name="password"
-                            autoComplete="current-password"
-                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white"
-                            placeholder="Wklej Pantry ID..."
-                            value={pantryId}
-                            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
-                        />
-                        {!pantryId && (
-                          <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80 ml-1 leading-relaxed">
-                            💡 Wymagany do trwałego przechowywania historii w chmurze.
-                          </p>
-                        )}
-                    </div>
-                </form>
+    {/* Pantry Cloud */}
+    <div className="space-y-4">
+        <div className="flex justify-between items-end px-1">
+            <label className="text-[11px] font-semibold text-gray-500 uppercase">Pantry ID</label>
+            <details className="group cursor-pointer">
+                <summary className="list-none text-[10px] text-indigo-500 hover:text-indigo-600 font-medium">Jak uzyskać ID?</summary>
+                <div className="absolute left-10 right-10 mt-2 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-[11px] leading-relaxed text-indigo-900 dark:text-indigo-300 z-50 shadow-xl border border-indigo-100 dark:border-indigo-900/50 animate-in fade-in slide-in-from-top-2">
+                    1. Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="underline font-bold">getpantry.cloud</a><br/>
+                    2. Stwórz nową "Spiżarnię" (Create Pantry)<br/>
+                    3. Skopiuj unikalne ID z adresu URL lub dashboardu<br/>
+                    <p className="mt-2 opacity-70 italic">* Pantry służy do bezpiecznej synchronizacji Twoich nagrań w chmurze.</p>
+                </div>
+            </details>
+        </div>
+        <input 
+            type="password" 
+            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all"
+            placeholder="Wklej Pantry ID..."
+            value={pantryId}
+            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
+        />
+    </div>
+</form>
 
                 {/* NOWE: BACKUP KLUCZY */}
-                <div className="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup kluczy</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={exportKeys}
-                            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider"
-                        >
-                            Pobierz klucze
-                        </button>
-                        <label className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">
-                            Wczytaj klucze
-                            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
-                        </label>
-                    </div>
-                </div>
+               <div className="space-y-4 pt-8 border-t border-gray-100 dark:border-gray-800">
+    <div className="px-1">
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup konfiguracji</label>
+        <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+            Zapisz klucze do pliku, aby szybko przywrócić dostęp na innym urządzeniu.
+        </p>
+    </div>
+    <div className="grid grid-cols-2 gap-4">
+        <button 
+            onClick={exportKeys}
+            className="px-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider active:scale-95"
+        >
+            Pobierz klucze
+        </button>
+        <label className="px-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center active:scale-95">
+            Wczytaj klucze
+            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
+        </label>
+    </div>
+</div>
              
                 {/* 4. DYSK (IMPORT/EXPORT) */}
                 <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
