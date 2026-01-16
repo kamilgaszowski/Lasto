@@ -865,7 +865,7 @@ export default function LastoWeb() {
                 </div>
               </div>
             </div>
-            </div>
+
           )}
         </div>
 
