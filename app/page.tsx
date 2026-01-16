@@ -21,7 +21,7 @@ interface HistoryItem {
   speakerNames?: SpeakerMap;
 }
 
-// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH - BRAK LIMITU 5MB) ---
+// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH) ---
 const DB_NAME = 'LastoDB';
 const STORE_NAME = 'recordings';
 const DB_VERSION = 1;
@@ -139,8 +139,7 @@ const InfoIcon = () => (
 export default function LastoWeb() {
   // --- STAN APLIKACJI ---
   const [apiKey, setApiKey] = useState('');
-  const [jsonBinSecret, setJsonBinSecret] = useState('');
-  const [jsonBinId, setJsonBinId] = useState('');
+  const [pantryId, setPantryId] = useState('');
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
@@ -170,39 +169,32 @@ export default function LastoWeb() {
   
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // --- 1. ODCZYT DANYCH (Z AUTO-MIGRACJĄ LOCALSTORAGE -> INDEXEDDB) ---
+  // --- 1. ODCZYT DANYCH ---
   useEffect(() => {
-    // Odczyt kluczy z LocalStorage (klucze zostają w LS, bo są małe)
     setApiKey(localStorage.getItem('assemblyAIKey') || '');
-    setJsonBinSecret(localStorage.getItem('jsonBinSecret') || '');
-    setJsonBinId(localStorage.getItem('jsonBinId') || '');
+    setPantryId(localStorage.getItem('pantryId') || '');
 
     if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().then((granted) => console.log("Storage persistent:", granted));
     }
 
-    // Inicjalizacja Bazy IndexedDB
     const initData = async () => {
         try {
-            // 1. Sprawdź czy są stare dane w LocalStorage (Migracja jednorazowa)
+            // Migracja z LocalStorage
             const oldHistoryRaw = localStorage.getItem('lastoHistory');
             if (oldHistoryRaw) {
                 try {
                     const parsed = JSON.parse(oldHistoryRaw);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        console.log("Migracja danych z LocalStorage do IndexedDB...");
                         for (const item of parsed) {
                             await dbSave(item);
                         }
                     }
                 } catch(e) {}
-                // Wyczyść stare po migracji
                 localStorage.removeItem('lastoHistory');
             }
 
-            // 2. Pobierz dane z IndexedDB
             const items = await dbGetAll();
-            // Sortowanie: Najnowsze na górze
             const sorted = items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setHistory(sorted);
 
@@ -225,7 +217,7 @@ export default function LastoWeb() {
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
 
-  // --- FUNKCJE LOGICZNE (DB) ---
+  // --- FUNKCJE LOGICZNE ---
 
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
     const defaults: {[key: string]: string} = { "A": "Rozmówca A", "B": "Rozmówca B" };
@@ -246,7 +238,6 @@ export default function LastoWeb() {
         }
     };
 
-    // Update UI & DB
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
     await dbSave(updatedItem);
@@ -259,11 +250,7 @@ export default function LastoWeb() {
 
   const executeDelete = async () => {
     if (!itemToDelete) return;
-    
-    // Delete from DB
     await dbDelete(itemToDelete);
-    
-    // Update UI
     setHistory(prev => prev.filter(item => item.id !== itemToDelete));
     if (selectedItem?.id === itemToDelete) {
       setSelectedItem(null);
@@ -275,7 +262,6 @@ export default function LastoWeb() {
   const saveNewTitle = async () => {
     if (!selectedItem || !editedTitle.trim()) { setIsEditingTitle(false); return; }
     const updatedItem = { ...selectedItem, title: editedTitle };
-    
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
     setIsEditingTitle(false);
@@ -302,7 +288,6 @@ export default function LastoWeb() {
           };
           
           await dbSave(newItem);
-
           setHistory(prev => {
              if (prev.some(item => item.id === newItem.id)) return prev;
              return [newItem, ...prev];
@@ -465,86 +450,51 @@ export default function LastoWeb() {
     }
   };
 
-
- // --- SYNCHRONIZACJA (JSONBIN.IO) - WERSJA "FAILED TO FETCH" FIX ---
-  const saveToCloudBin = async () => {
-    // 1. Walidacja wstępna
-    if (!jsonBinSecret || !jsonBinId) {
-        setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Uzupełnij Master Key i Bin ID w ustawieniach.' });
+  // --- SYNCHRONIZACJA (PANTRY.CLOUD) ---
+  const saveToCloud = async () => {
+    if (!pantryId) {
+        setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach!' });
         return;
     }
     
-    // Usuwamy spacje
-    const cleanSecret = jsonBinSecret.trim();
-    const cleanId = jsonBinId.trim();
-
-    // Sprawdzamy czy format klucza wygląda na poprawny (Master Key zawsze zaczyna się od $)
-    if (!cleanSecret.startsWith('$2a$')) {
-        setInfoModal({ isOpen: true, title: 'Zły klucz', message: 'Master Key powinien zaczynać się od "$2a$10$..." Sprawdź czy skopiowałeś dobry klucz (API Keys -> Master Key).' });
-        return;
-    }
+    const cleanId = pantryId.trim();
+    // Koszyk "lastoHistory"
+    const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
 
     setIsProcessing(true);
     try {
-        console.log("Próba połączenia z:", `https://api.jsonbin.io/v3/b/${cleanId}`);
-        
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${cleanId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': cleanSecret,
-                'X-Bin-Versioning': 'false' // WAŻNE: Wyłączamy wersjonowanie, żeby po prostu nadpisywać
-            },
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ history: history })
         });
 
         if (res.ok) {
-            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano historię w chmurze!' });
+            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano historię w chmurze Pantry!' });
         } else {
-            // Próba odczytania błędu
-            let errorMsg = `Kod: ${res.status}`;
-            try {
-                const errJson = await res.json();
-                errorMsg = errJson.message || errorMsg;
-            } catch (e) {}
-            
-            console.error("Błąd serwera:", errorMsg);
-            throw new Error(errorMsg);
+            const errorText = await res.text();
+            throw new Error(`Błąd serwera: ${errorText}`);
         }
     } catch (e: any) {
-        console.error("Błąd połączenia:", e);
-        
-        let userMessage = "Błąd połączenia.";
-        
-        if (e.message.includes("Failed to fetch")) {
-             userMessage = "Przeglądarka zablokowała połączenie. 1. Wyłącz AdBlocka. 2. Sprawdź czy Bin ID jest poprawny (nie zawiera spacji ani dziwnych znaków).";
-        } else if (e.message.includes("401") || e.message.includes("403")) {
-             userMessage = "Odmowa dostępu. Sprawdź czy Master Key jest poprawny.";
-        } else if (e.message.includes("404")) {
-             userMessage = "Nie znaleziono Bina. Sprawdź czy Bin ID jest poprawny.";
-        }
-
-        setInfoModal({ 
-            isOpen: true, 
-            title: 'Wystąpił błąd', 
-            message: userMessage
-        });
+        setInfoModal({ isOpen: true, title: 'Wystąpił błąd', message: `Nie udało się połączyć. (${e.message})` });
     } finally {
         setIsProcessing(false);
     }
   };
 
-  const loadFromCloudBin = async () => {
-    if (!jsonBinSecret || !jsonBinId) return;
+  const loadFromCloud = async () => {
+    if (!pantryId) return;
+    
+    const cleanId = pantryId.trim();
+    const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
+
     setIsProcessing(true);
     try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${jsonBinId}/latest`, {
-            method: 'GET',
-            headers: { 'X-Master-Key': jsonBinSecret }
-        });
-        
+        const res = await fetch(url, { method: 'GET' });
+        if (!res.ok) throw new Error("Nie znaleziono danych.");
+
         const data = await res.json();
-        const remoteHistory = data.record.history;
+        const remoteHistory = data.history;
 
         if (Array.isArray(remoteHistory)) {
              setHistory(prev => {
@@ -553,23 +503,20 @@ export default function LastoWeb() {
                     index === self.findIndex((t: any) => t.id === item.id)
                 );
                 const sorted = unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                
-                // Zapisz wszystko do IndexedDB
                 sorted.forEach(async (item: HistoryItem) => await dbSave(item));
-                
                 return sorted;
             });
             setIsSettingsOpen(false);
-            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Pobrano i scalono historię z chmury.' });
+            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Pobrano historię z chmury.' });
         }
-    } catch (e) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nie udało się pobrać danych.' });
+    } catch (e: any) {
+        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message });
     } finally {
         setIsProcessing(false);
     }
   };
 
-  // --- OBSŁUGA DYSKU (PLIK) ---
+  // --- OBSŁUGA DYSKU ---
   const saveToDisk = () => {
     const dataStr = JSON.stringify(history, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -590,12 +537,8 @@ export default function LastoWeb() {
         try {
             const imported = JSON.parse(e.target?.result as string);
             if (Array.isArray(imported)) {
+                for (const item of imported) await dbSave(item);
                 
-                // Zapisz do DB
-                for (const item of imported) {
-                    await dbSave(item);
-                }
-
                 setHistory(prev => {
                     const combined = [...imported, ...prev];
                     const unique = combined.filter((item, index, self) => 
@@ -615,7 +558,6 @@ export default function LastoWeb() {
     reader.readAsText(file);
   };
 
-  // --- LOGIKA FILTROWANIA (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
 
@@ -971,41 +913,34 @@ export default function LastoWeb() {
                     </button>
                 </div>
 
-                {/* SEKCJA: PEŁNA SYNCHRONIZACJA (JSONBIN) */}
+                {/* SEKCJA: PEŁNA SYNCHRONIZACJA (PANTRY CLOUD) */}
                 <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Chmura synchronizacji (<a href="https://jsonbin.io/app/bins" target="_blank" className="underline">JSONBin.io</a>)
+                        Chmura synchronizacji (<a href="https://getpantry.cloud/" target="_blank" className="underline">Pantry Cloud</a>)
                     </label>
                     
                     <div className="space-y-2">
                         <input 
-                            type="password" 
-                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs"
-                            placeholder="Master Key (X-Master-Key)..."
-                            value={jsonBinSecret}
-                            onChange={(e) => { setJsonBinSecret(e.target.value); localStorage.setItem('jsonBinSecret', e.target.value); }}
-                        />
-                        <input 
                             type="text" 
                             className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs"
-                            placeholder="Bin ID (np. 65a4b...)"
-                            value={jsonBinId}
-                            onChange={(e) => { setJsonBinId(e.target.value); localStorage.setItem('jsonBinId', e.target.value); }}
+                            placeholder="Pantry ID (np. 94380a04-...)"
+                            value={pantryId}
+                            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <button 
-                            onClick={saveToCloudBin}
-                            disabled={!jsonBinId || isProcessing}
+                            onClick={saveToCloud}
+                            disabled={!pantryId || isProcessing}
                             className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
                         >
                             <span>⬆ Wyślij (Backup)</span>
                         </button>
                         
                         <button 
-                            onClick={loadFromCloudBin}
-                            disabled={!jsonBinId || isProcessing}
+                            onClick={loadFromCloud}
+                            disabled={!pantryId || isProcessing}
                             className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
                         >
                             <span>⬇ Pobierz (Sync)</span>
