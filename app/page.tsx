@@ -620,7 +620,7 @@ export default function LastoWeb() {
                   </div>
                 ) : !apiKey ? (
                   <div className="flex flex-col items-center space-y-4">
-                    <button onClick={() => setIsSettingsOpen(true)} className="bg-black dark:bg-white dark:text-black text-white px-10 py-5 rounded-full transition-all hover:scale-105 shadow-xl font-medium">Skonfiguruj klucze</button>
+                    <button onClick={() => setIsSettingsOpen(true)} className="bg-black dark:bg-white dark:text-black text-white px-10 py-5 rounded-full transition-all hover:scale-105 shadow-xl font-medium">Dodaj pierwsze nagranie</button>
                   </div>
                 ) : (
                   <>
