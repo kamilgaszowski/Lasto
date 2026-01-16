@@ -175,6 +175,8 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
+  const deleteAllModalRef = useRef<HTMLDivElement>(null); // Do obsługi Entera
   
   const deleteModalRef = useRef<HTMLDivElement>(null);
   // Stany synchronizacji
@@ -248,6 +250,11 @@ const [syncProgress, setSyncProgress] = useState<{ current: number; total: numbe
     }
   }, [isDeleteModalOpen]);
 
+useEffect(() => {
+    if (isDeleteModalOpen) deleteModalRef.current?.focus();
+    if (isDeleteAllModalOpen) deleteAllModalRef.current?.focus();
+  }, [isDeleteModalOpen, isDeleteAllModalOpen]);
+
   // --- FUNKCJE LOGICZNE ---
 
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
@@ -313,6 +320,39 @@ const [syncProgress, setSyncProgress] = useState<{ current: number; total: numbe
         }
     } catch (e) {
         console.error("Błąd podczas usuwania:", e);
+    } finally {
+        setIsProcessing(false);
+        setUploadStatus('');
+    }
+  };
+
+  const executeDeleteAll = async () => {
+    setIsProcessing(true);
+    try {
+        // 1. Usuń wszystko z IndexedDB
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+
+        // 2. Wyczyść stan aplikacji
+        setHistory([]);
+        setSelectedItem(null);
+        setIsDeleteAllModalOpen(false);
+
+        // 3. Opcjonalnie: Wyczyść Pantry
+        if (pantryId) {
+            setUploadStatus('Czyszczenie chmury...');
+            const cleanId = pantryId.trim();
+            const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chunk_0: [], manifest: { totalChunks: 0, timestamp: Date.now() } })
+            });
+        }
+        setInfoModal({ isOpen: true, title: 'Gotowe', message: 'Wszystkie nagrania zostały usunięte.' });
+    } catch (e) {
+        console.error(e);
     } finally {
         setIsProcessing(false);
         setUploadStatus('');
@@ -624,35 +664,30 @@ const [syncProgress, setSyncProgress] = useState<{ current: number; total: numbe
                 <span>Wyślij</span>
               </button>
           </div>
+          
+         {/* LISTA NAGRAŃ (Przewijalna) */}
           <div className="flex-1 flex flex-col overflow-y-auto px-4 space-y-1">
             {history.map((item) => (
-              <button 
-                key={item.id}
-                onClick={() => { setSelectedItem(item) }}
-                className={`w-full text-left p-4 rounded-xl transition-all relative group ${
-                  selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                }`}
-              >
-                <div 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    confirmDelete(item.id); 
-                  }}
-                  className="absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all z-10"
-                >
-                  <CloseIcon /> 
-                </div>
-
+              <button key={item.id} onClick={() => { setSelectedItem(item); }} className={`w-full text-left p-4 rounded-xl transition-all relative group ${selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}>
+                <div onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} className="absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all z-10"><CloseIcon /></div>
                 <div className="font-medium truncate text-sm pr-6">{item.title}</div>
-                <div className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">
-                  {new Date(item.date).toLocaleString('pl-PL', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                  })}
-                </div>
+                <div className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">{new Date(item.date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
               </button>
             ))}
           </div>
+
+          {/* PRZYCISK USUWANIA WSZYSTKIEGO (Na samym dole) */}
+          {history.length > 0 && (
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 mt-auto">
+                <button 
+                  onClick={() => setIsDeleteAllModalOpen(true)}
+                  className="w-full py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <TrashIcon />
+                  <span>Wyczyść Archiwum</span>
+                </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -961,25 +996,7 @@ const [syncProgress, setSyncProgress] = useState<{ current: number; total: numbe
                     <button type="submit" className="hidden" />
                 </form>
 
-                {/* 3. SYNCHRONIZACJA (PANTRY) */}
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <button 
-                        onClick={saveToCloud}
-                        disabled={!pantryId || isProcessing}
-                        className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                    >
-                        <span>⬆ Wyślij (Backup)</span>
-                    </button>
-                    
-                    <button 
-                        onClick={loadFromCloud}
-                        disabled={!pantryId || isProcessing}
-                        className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                    >
-                        <span>⬇ Pobierz (Sync)</span>
-                    </button>
-                </div>
-
+             
                 {/* 4. DYSK (IMPORT/EXPORT) */}
                 <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
@@ -1037,6 +1054,31 @@ const [syncProgress, setSyncProgress] = useState<{ current: number; total: numbe
             <div className="flex space-x-3 pt-2">
                 <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium">Anuluj</button>
                 <button onClick={executeDelete} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20">Usuń (Enter)</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteAllModalOpen && (
+        <div 
+            ref={deleteAllModalRef}
+            className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-6 outline-none"
+            onClick={() => setIsDeleteAllModalOpen(false)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') executeDeleteAll();
+                if (e.key === 'Escape') setIsDeleteAllModalOpen(false);
+            }}
+            tabIndex={-1} 
+        >
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white mb-4 animate-pulse"><TrashIcon /></div>
+            <div className="space-y-2">
+                <h3 className="text-xl font-bold dark:text-white">Usunąć wszystko?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Stracisz bezpowrotnie wszystkie nagrania z Archiwum i chmury Pantry. Kontynuować?</p>
+            </div>
+            <div className="flex flex-col space-y-2 pt-4">
+                <button onClick={executeDeleteAll} className="w-full py-4 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors text-sm">Tak, usuń wszystko (Enter)</button>
+                <button onClick={() => setIsDeleteAllModalOpen(false)} className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-medium">Anuluj (Esc)</button>
             </div>
           </div>
         </div>
