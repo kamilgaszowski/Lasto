@@ -414,7 +414,7 @@ useEffect(() => {
         body: file 
       });
       const { upload_url } = await uploadRes.json();
-      setStatus('Przetwarzanie AI...');
+      setStatus('Przetwarzanie...');
       const transcriptRes = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST', 
         headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
@@ -640,7 +640,7 @@ useEffect(() => {
       <div className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-80 -translate-x-full'}`}>
         <div className="flex flex-col h-full overflow-hidden">
           <div className="p-8 flex justify-between items-center whitespace-nowrap">
-            <h2 onClick={() => setIsSidebarOpen(false)} className="text-2xl font-light tracking-tight cursor-pointer">Archiwum</h2>
+            <h2 className="text-2xl font-light tracking-tight cursor-pointer">Archiwum</h2>
             <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors">
               <RuneArrowLeft />
             </button>
@@ -701,17 +701,30 @@ useEffect(() => {
                 onClick={() => setIsSidebarOpen(false)}
             />
         )}
+     
         {/* TOP BAR */}
         <div className="p-8 flex justify-between items-start z-10">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-6">
              {!isSidebarOpen && (
-               <button onClick={() => setIsSidebarOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white mr-6 transition-colors cursor-pointer">
+               <button 
+                 onClick={() => setIsSidebarOpen(true)} 
+                 className="text-gray-300 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+               >
                  <RuneArrowRight />
                </button>
              )}
-             {selectedItem && (
-               <button onClick={() => setSelectedItem(null)} className="text-3xl font-thin tracking-tighter text-gray-400 hover:text-black dark:hover:text-white transition-colors">Lasto</button>
-             )}
+             
+             {/* PRZYCISK HOME - Zawsze klikalny, gdy widoczny */}
+             <button 
+                onClick={() => setSelectedItem(null)} 
+                className={`text-3xl font-thin tracking-tighter transition-all duration-300 hover:text-black dark:hover:text-white ${
+                  selectedItem 
+                    ? 'text-gray-400' 
+                    : 'text-gray-900 dark:text-white'
+                }`}
+             >
+                Lasto
+             </button>
           </div>
 
           <div className="flex flex-col items-end space-y-2">
@@ -723,7 +736,6 @@ useEffect(() => {
             </button>
           </div>
         </div>
-
         <div className="flex-1 flex flex-col items-center justify-center px-12 pb-12 overflow-hidden">
           {!selectedItem ? (
             /* EKRAN POWITALNY */
@@ -1053,7 +1065,7 @@ useEffect(() => {
             </div>
             <div className="flex space-x-3 pt-2">
                 <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium">Anuluj</button>
-                <button onClick={executeDelete} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20">Usuń (Enter)</button>
+                <button onClick={executeDelete} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20">Usuń</button>
             </div>
           </div>
         </div>
@@ -1077,7 +1089,7 @@ useEffect(() => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Stracisz bezpowrotnie wszystkie nagrania z Archiwum i chmury Pantry. Kontynuować?</p>
             </div>
             <div className="flex flex-col space-y-2 pt-4">
-                <button onClick={executeDeleteAll} className="w-full py-4 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors text-sm">Tak, usuń wszystko (Enter)</button>
+                <button onClick={executeDeleteAll} className="w-full py-4 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors text-sm">Tak, usuń wszystko</button>
                 <button onClick={() => setIsDeleteAllModalOpen(false)} className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-medium">Anuluj (Esc)</button>
             </div>
           </div>
