@@ -669,9 +669,7 @@ export default function LastoWeb() {
                     className="space-y-3"
                     onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
                 >
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
-                    </label>
+                   
                     
                     {/* Trik dla menedżera haseł: Ukryte pole username */}
                     <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
