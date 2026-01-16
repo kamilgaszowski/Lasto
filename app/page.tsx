@@ -403,6 +403,14 @@ export default function LastoWeb() {
              )}
           </div>
 
+          <div className="flex flex-col items-end space-y-2">
+            <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"
+            >
+                <SettingsIcon />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-12 pb-12 overflow-hidden">
@@ -523,6 +531,14 @@ export default function LastoWeb() {
             {status}
           </div>
         )}
+        {/* NOWA STOPKA (FOOTER) */}
+        <div className="absolute bottom-6 right-8 text-[10px] text-gray-200 dark:text-gray-800 uppercase tracking-widest flex items-center space-x-3 pointer-events-none select-none z-0">
+            <span className="italic font-serif">Lasto beth nîn</span>
+            <span className="text-xs opacity-50">ᛟ</span>
+            <span>developed by Kamil Gąszowski</span>
+            <span className="text-xs opacity-50">ᛟ</span>
+            <span>{new Date().getFullYear()}</span>
+        </div>
       </div>
 
       {/* MODAL USTAWIEŃ */}
@@ -616,19 +632,10 @@ export default function LastoWeb() {
                     Usuń
                 </button>
             </div>
+          </div>
 
-          <div className="flex flex-col items-end space-y-2">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-gray-300 italic">Lasto beth nîn</span>
-            <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"
-            >
-                <SettingsIcon />
-            </button>
-          </div>
-          </div>
+       
         </div>
-        
       )}
     </main>
   );
