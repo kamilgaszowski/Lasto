@@ -565,7 +565,7 @@ export default function LastoWeb() {
             {history.map((item) => (
               <button 
                 key={item.id}
-                onClick={() => { setSelectedItem(item); setIsSidebarOpen(false); }}
+                onClick={() => { setSelectedItem(item) }}
                 className={`w-full text-left p-4 rounded-xl transition-all relative group ${
                   selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
                 }`}
@@ -596,7 +596,7 @@ export default function LastoWeb() {
       {/* GŁÓWNY PANEL */}
 <div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 ${isSidebarOpen && selectedItem ? 'ml-80' : 'ml-0'}`}>        
     {/* OVERLAY do zamykania Sidebara - aktywny tylko w widoku głównym (brak selectedItem) */}
-        {isSidebarOpen && !selectedItem && (
+        {isSidebarOpen &&  (
             <div 
                 className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-20 transition-opacity"
                 onClick={() => setIsSidebarOpen(false)}
@@ -837,10 +837,13 @@ export default function LastoWeb() {
                     </div>
                 </div>
 
-                {/* 2. KLUCZE API (FORMULARZ) */}
+              {/* 2. KLUCZE API (FORMULARZ) */}
                 <form 
                     className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800"
-                    onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
+                    onSubmit={(e) => { 
+                        e.preventDefault(); 
+                        setIsSettingsOpen(false); 
+                    }}
                 >
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucze dostępowe</label>
                     
@@ -854,7 +857,11 @@ export default function LastoWeb() {
                                 autoComplete="current-password"
                                 className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white" 
                                 value={apiKey} 
-                                onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                                onChange={(e) => { 
+                                    const val = e.target.value;
+                                    setApiKey(val); 
+                                    localStorage.setItem('assemblyAIKey', val); 
+                                }} 
                                 placeholder="Wklej klucz AssemblyAI..." 
                             />
                         </div>
@@ -863,7 +870,8 @@ export default function LastoWeb() {
                     {/* Pantry Cloud */}
                     <div className="space-y-2">
                         <label className="text-[9px] text-gray-400 uppercase ml-1">Pantry ID (Sync)</label>
-                        <input type="text" name="username" value="LastoPantryID" autoComplete="username" className="hidden" readOnly />
+                        {/* Pomocniczy input dla managera haseł */}
+                        <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
                         <div className="relative">
                             <input 
                                 type="password" 
@@ -872,9 +880,12 @@ export default function LastoWeb() {
                                 className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white"
                                 placeholder="Wklej Pantry ID..."
                                 value={pantryId}
-                                onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
+                                onChange={(e) => { 
+                                    const val = e.target.value;
+                                    setPantryId(val); 
+                                    localStorage.setItem('pantryId', val); 
+                                }}
                             />
-                            {/* Ikonka kłódki */}
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
@@ -882,10 +893,8 @@ export default function LastoWeb() {
                             </div>
                         </div>
                     </div>
-                    
-                    <p className="text-[9px] text-gray-400 leading-tight pt-1">
-                       * Oba klucze są wymagane do pełnego działania (Transkrypcja + Chmura).
-                    </p>
+                    {/* Ukryty przycisk submit, który aktywuje menedżera haseł po naciśnięciu Enter */}
+                    <button type="submit" className="hidden" />
                 </form>
 
                 {/* 3. SYNCHRONIZACJA (PANTRY) */}
@@ -927,13 +936,14 @@ export default function LastoWeb() {
 
             </div>
 
-            <button 
-                id="save-btn" 
-                onClick={() => setIsSettingsOpen(false)} 
-                className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium"
-            >
-                Gotowe
-            </button>
+         <button 
+    id="save-btn" 
+    type="submit"
+    onClick={() => setIsSettingsOpen(false)} 
+    className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium"
+>
+    Gotowe
+</button>
           </div>
         </div>
       )}
