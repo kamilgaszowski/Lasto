@@ -293,6 +293,66 @@ export default function LastoWeb() {
     }
   };
 
+  // --- SYNCHRONIZACJA Z CHMURĄ ---
+  const syncWithCloud = async () => {
+    if (!apiKey) return;
+    setIsProcessing(true); // Użyjemy tego, żeby pokazać spinner
+    
+    try {
+        // 1. Pobierz listę ostatnich nagrań z AssemblyAI
+        const response = await fetch('https://api.assemblyai.com/v2/transcript?limit=50&status=completed', {
+            headers: { 'Authorization': apiKey }
+        });
+        const data = await response.json();
+        
+        if (data.transcripts && Array.isArray(data.transcripts)) {
+            let addedCount = 0;
+            
+            // 2. Sprawdzamy, których nagrań brakuje u nas lokalnie
+            const missingTranscripts = data.transcripts.filter((remoteItem: any) => 
+                !history.some(localItem => localItem.id === remoteItem.id)
+            );
+
+            // 3. Pobieramy szczegóły tylko dla brakujących (pętla)
+            for (const item of missingTranscripts) {
+                try {
+                    const detailRes = await fetch(`https://api.assemblyai.com/v2/transcript/${item.id}`, {
+                        headers: { 'Authorization': apiKey }
+                    });
+                    const detail = await detailRes.json();
+                    
+                    // Tworzymy nowy obiekt historii
+                    const newItem: HistoryItem = {
+                        id: detail.id,
+                        title: "Pobrane z chmury", // Niestety Assembly nie trzyma nazwy pliku, więc dajemy domyślną
+                        date: detail.created || new Date().toISOString(),
+                        content: detail.text,
+                        utterances: detail.utterances,
+                        speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
+                    };
+                    
+                    // Dodajemy do stanu (bezpiecznie, unikając duplikatów)
+                    setHistory(prev => [newItem, ...prev]);
+                    addedCount++;
+                    
+                } catch (err) {
+                    console.error("Błąd pobierania szczegółów:", item.id);
+                }
+            }
+            
+            if (addedCount > 0) {
+                alert(`Pobrano ${addedCount} nagrań z AssemblyAI.`);
+            } else {
+                alert("Wszystkie nagrania są już zsynchronizowane.");
+            }
+        }
+    } catch (e) {
+        alert("Błąd połączenia z AssemblyAI.");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) processFile(file);
@@ -661,7 +721,29 @@ export default function LastoWeb() {
 
               
             </div>
-
+{/* SEKCJA CHMURY */}
+                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Synchronizacja</label>
+                    
+                    <button 
+                        onClick={syncWithCloud}
+                        disabled={!apiKey || isProcessing}
+                        className="w-full px-4 py-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-xs font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isProcessing ? (
+                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>
+                        ) : (
+                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                           </svg>
+                        )}
+                        <span>Pobierz historię z AssemblyAI</span>
+                    </button>
+                    <p className="text-[9px] text-gray-400 text-center leading-relaxed px-4">
+                        Pobierze ostatnie 50 nagrań z Twojego konta. <br/>
+                        Uwaga: Niestandardowe nazwy rozmówców nie zostaną przywrócone.
+                    </p>
+                </div>
 <button 
                 id="save-btn" // Dodane ID
                 onClick={() => setIsSettingsOpen(false)} 
