@@ -295,6 +295,7 @@ export default function LastoWeb() {
 
   // --- SYNCHRONIZACJA Z CHMURĄ ---
 
+
   const syncWithCloud = async () => {
     if (!apiKey) return;
     setIsProcessing(true);
@@ -308,13 +309,12 @@ export default function LastoWeb() {
         
         if (data.transcripts && Array.isArray(data.transcripts)) {
             let addedCount = 0;
-            
-            // 2. Sprawdzamy, których nagrań brakuje u nas lokalnie
+            // 2. Filtrujemy tylko te, których nie mamy
             const missingTranscripts = data.transcripts.filter((remoteItem: any) => 
                 !history.some(localItem => localItem.id === remoteItem.id)
             );
 
-            // 3. Pobieramy szczegóły dla brakujących
+            // 3. Pobieramy szczegóły
             for (const item of missingTranscripts) {
                 try {
                     const detailRes = await fetch(`https://api.assemblyai.com/v2/transcript/${item.id}`, {
@@ -322,25 +322,38 @@ export default function LastoWeb() {
                     });
                     const detail = await detailRes.json();
                     
-                    // FORMATOWANIE DATY DO TYTUŁU
-                    // Tworzymy czytelną datę np. "16.01.2026 18:30"
-                    const createdDate = new Date(detail.created);
+                    // --- KLUCZOWA ZMIANA DATY ---
+                    // Bierzemy datę z LISTY (item.created), bo tam jest zawsze.
+                    // Szczegóły (detail) często nie mają pola 'created'.
+                    let rawDate = item.created; 
+                    
+                    // Bezpiecznik: Upewniamy się, że to string
+                    if (!rawDate) {
+                        console.warn("Brak daty dla nagrania:", item.id);
+                        rawDate = new Date().toISOString(); // Tylko w ostateczności
+                    }
+
+                    // Tworzymy obiekt daty
+                    const createdDate = new Date(rawDate);
+                    
+                    // Formatowanie do tytułu (np. 16.01.2024, 15:30)
                     const dateStr = createdDate.toLocaleDateString('pl-PL');
                     const timeStr = createdDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
                     
                     const newItem: HistoryItem = {
                         id: detail.id,
-                        title: `Nagranie z ${dateStr}, ${timeStr}`, // NOWY TYTUŁ
-                        date: detail.created || new Date().toISOString(),
+                        // Tytuł z datą historyczną
+                        title: `Nagranie z ${dateStr}, ${timeStr}`,
+                        // Data historyczna do sortowania w sidebarze
+                        date: rawDate, 
                         content: detail.text,
                         utterances: detail.utterances,
                         speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
                     };
                     
                     setHistory(prev => {
-                        // Podwójne zabezpieczenie przed duplikatami
                         if (prev.some(p => p.id === newItem.id)) return prev;
-                        // Dodajemy nowe na górę, ale sortowanie i tak zależy od kolejności w tablicy
+                        // Dodajemy nowe
                         return [newItem, ...prev];
                     });
                     addedCount++;
@@ -350,15 +363,14 @@ export default function LastoWeb() {
                 }
             }
             
-            // NOWE KOMUNIKATY
             if (addedCount > 0) {
-                alert(`Sukces! Zsynchronizowano ${addedCount} nowych nagrań z archiwum AssemblyAI.`);
+                setInfoModal({ isOpen: true, title: 'Sukces', message: `Zsynchronizowano ${addedCount} nowych nagrań z archiwum AssemblyAI.` });
             } else {
-                alert("Twoje archiwum jest aktualne. Wszystkie nagrania z chmury są już na Twoim urządzeniu.");
+                setInfoModal({ isOpen: true, title: 'Info', message: 'Twoje archiwum jest aktualne. Wszystkie nagrania są już pobrane.' });
             }
         }
     } catch (e) {
-        alert("Wystąpił problem z połączeniem. Sprawdź klucz API lub połączenie z internetem.");
+        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Wystąpił problem z połączeniem. Sprawdź klucz API.' });
     } finally {
         setIsProcessing(false);
     }
