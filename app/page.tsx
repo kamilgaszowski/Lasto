@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 interface Utterance {
   speaker: string;
   text: string;
+  [key: string]: any; // Pozwala na inne pola, które wytniemy przy kompresji
 }
 
 interface SpeakerMap {
@@ -19,9 +20,10 @@ interface HistoryItem {
   content: string;
   utterances?: Utterance[];
   speakerNames?: SpeakerMap;
+  [key: string]: any;
 }
 
-// --- INDEXED DB UTILITIES (SILNIK BAZY DANYCH) ---
+// --- INDEXED DB UTILITIES ---
 const DB_NAME = 'LastoDB';
 const STORE_NAME = 'recordings';
 const DB_VERSION = 1;
@@ -73,6 +75,39 @@ const dbDelete = async (id: string) => {
     tx.onerror = () => reject(tx.error);
   });
 };
+
+// --- KOMPRESJA DANYCH (KLUCZ DO SUKCESU) ---
+// Usuwamy zbędne metadane (words, confidence, timing) z AssemblyAI przed wysyłką
+const compressHistory = (history: HistoryItem[]) => {
+    return history.map(item => ({
+        id: item.id,
+        ti: item.title,     // Skracamy klucze
+        da: item.date,
+        sn: item.speakerNames,
+        // Zachowujemy tylko mówcę i tekst, usuwamy resztę
+        u: item.utterances?.map(u => ({ s: u.speaker, t: u.text })) || [] 
+        // Uwaga: Pole 'content' (cały tekst) też usuwamy, bo można je odtworzyć z 'u', 
+        // a zajmuje dużo miejsca. Jeśli jest krytyczne, można zostawić jako 'c': item.content
+    }));
+};
+
+const decompressHistory = (compressed: any[]): HistoryItem[] => {
+    return compressed.map(item => {
+        // Odtwarzamy pełny tekst z wypowiedzi (jeśli contentu brak)
+        const utterances = item.u?.map((u: any) => ({ speaker: u.s, text: u.t })) || [];
+        const content = utterances.map((u: any) => u.text).join('\n');
+
+        return {
+            id: item.id,
+            title: item.ti,
+            date: item.da,
+            content: item.c || content, // Jeśli było 'c' to bierzemy, jak nie to generujemy
+            utterances: utterances,
+            speakerNames: item.sn
+        };
+    });
+};
+
 
 // --- IKONY ---
 const RuneArrowLeft = () => (
@@ -151,20 +186,13 @@ export default function LastoWeb() {
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [syncStartDate, setSyncStartDate] = useState('');
   const [syncEndDate, setSyncEndDate] = useState('');
-  const [uploadStatus, setUploadStatus] = useState<string>(''); // Nowy status dla wysyłania paczek
+  const [uploadStatus, setUploadStatus] = useState<string>(''); 
 
-  // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
-
-  // Usuwanie
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
-  // Info Modal
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
-
-  // Edycja & Motyw
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   
@@ -230,15 +258,10 @@ export default function LastoWeb() {
 
   const handleSpeakerNameChange = async (speakerKey: string, newName: string) => {
     if (!selectedItem) return;
-
     const updatedItem = {
         ...selectedItem,
-        speakerNames: {
-            ...selectedItem.speakerNames,
-            [speakerKey]: newName
-        }
+        speakerNames: { ...selectedItem.speakerNames, [speakerKey]: newName }
     };
-
     setHistory(prev => prev.map(item => item.id === selectedItem.id ? updatedItem : item));
     setSelectedItem(updatedItem);
     await dbSave(updatedItem);
@@ -253,9 +276,7 @@ export default function LastoWeb() {
     if (!itemToDelete) return;
     await dbDelete(itemToDelete);
     setHistory(prev => prev.filter(item => item.id !== itemToDelete));
-    if (selectedItem?.id === itemToDelete) {
-      setSelectedItem(null);
-    }
+    if (selectedItem?.id === itemToDelete) setSelectedItem(null);
     setIsDeleteModalOpen(false);
     setItemToDelete(null);
   };
@@ -287,7 +308,6 @@ export default function LastoWeb() {
             utterances: result.utterances,
             speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
-          
           await dbSave(newItem);
           setHistory(prev => {
              if (prev.some(item => item.id === newItem.id)) return prev;
@@ -309,24 +329,19 @@ export default function LastoWeb() {
     if (!apiKey) return;
     setIsProcessing(true);
     setStatus('Wysyłanie...');
-
     try {
       const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', { 
         method: 'POST', 
         headers: { 'Authorization': apiKey }, 
         body: file 
       });
-      
       const { upload_url } = await uploadRes.json();
-      
       setStatus('Przetwarzanie AI...');
-      
       const transcriptRes = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST', 
         headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ audio_url: upload_url, language_code: 'pl', speaker_labels: true })
       });
-
       const { id } = await transcriptRes.json();
       checkStatus(id, file.name);
     } catch (e) { 
@@ -372,7 +387,6 @@ export default function LastoWeb() {
         const data = await response.json();
         
         if (data.transcripts && Array.isArray(data.transcripts)) {
-            // Filtrowanie Datami
             let filteredList = data.transcripts;
             
             if (syncStartDate) {
@@ -437,11 +451,7 @@ export default function LastoWeb() {
             }
             
             setSyncProgress(null);
-            setInfoModal({ 
-                isOpen: true, 
-                title: 'Sukces', 
-                message: `Pobrano ${addedCount} nagrań do bazy lokalnej.` 
-            });
+            setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano ${addedCount} nagrań do bazy lokalnej.` });
         }
     } catch (e) {
         setInfoModal({ isOpen: true, title: 'Błąd', message: 'Problem z połączeniem z AssemblyAI.' });
@@ -451,7 +461,7 @@ export default function LastoWeb() {
     }
   };
 
-  // --- SYNCHRONIZACJA (PANTRY.CLOUD) - WERSJA CHUNKED (PACZKI) ---
+  // --- SYNCHRONIZACJA (PANTRY.CLOUD) - WERSJA Z KOMPRESJĄ I CHUNKINGIEM ---
   const saveToCloud = async () => {
     if (!pantryId) {
         setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach!' });
@@ -459,36 +469,33 @@ export default function LastoWeb() {
     }
     
     const cleanId = pantryId.trim();
-    // Używamy jednego koszyka
     const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
 
     setIsProcessing(true);
-    setUploadStatus('Przygotowywanie...');
+    setUploadStatus('Kompresowanie danych...');
 
     try {
-        // Dzielimy historię na paczki po 20 elementów (żeby nie przekroczyć limitu)
-        const CHUNK_SIZE = 20;
+        // 1. Kompresja (usuwanie metadanych)
+        const compressedHistory = compressHistory(history);
+
+        // 2. Dzielimy na paczki (po 50 skompresowanych nagrań - to teraz bezpieczne)
+        const CHUNK_SIZE = 50;
         const chunks = [];
-        for (let i = 0; i < history.length; i += CHUNK_SIZE) {
-            chunks.push(history.slice(i, i + CHUNK_SIZE));
+        for (let i = 0; i < compressedHistory.length; i += CHUNK_SIZE) {
+            chunks.push(compressedHistory.slice(i, i + CHUNK_SIZE));
         }
 
-        // Najpierw: Wyczyśćmy koszyk (lub nadpiszmy manifest)
-        // Pantry pozwala na POST, który dodaje/aktualizuje klucze.
-        // Wyślemy paczki jedna po drugiej.
-        
         for (let i = 0; i < chunks.length; i++) {
             setUploadStatus(`Wysyłanie paczki ${i + 1} z ${chunks.length}...`);
             
             const chunkKey = `chunk_${i}`;
             const payload = {
-                [chunkKey]: chunks[i], // np. "chunk_0": [...]
-                // Dodajemy manifest przy każdej paczce, żeby zawsze był aktualny
-                "manifest": { totalChunks: chunks.length, totalItems: history.length, timestamp: Date.now() }
+                [chunkKey]: chunks[i],
+                "manifest": { totalChunks: chunks.length, timestamp: Date.now() }
             };
 
             const res = await fetch(url, {
-                method: 'POST', // POST w Pantry aktualizuje/dodaje klucze w koszyku
+                method: 'POST', 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -499,15 +506,11 @@ export default function LastoWeb() {
             }
         }
 
-        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię w ${chunks.length} paczkach.` });
+        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię (skompresowaną) w ${chunks.length} paczkach.` });
 
     } catch (e: any) {
         console.error("Błąd Pantry:", e);
-        setInfoModal({ 
-            isOpen: true, 
-            title: 'Wystąpił błąd', 
-            message: `Nie udało się zapisać. ${e.message}` 
-        });
+        setInfoModal({ isOpen: true, title: 'Wystąpił błąd', message: `Nie udało się zapisać. ${e.message}` });
     } finally {
         setIsProcessing(false);
         setUploadStatus('');
@@ -521,37 +524,33 @@ export default function LastoWeb() {
     const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
 
     setIsProcessing(true);
+    setUploadStatus('Pobieranie...');
+
     try {
         const res = await fetch(url, { method: 'GET' });
-        
-        if (!res.ok) {
-            throw new Error("Nie znaleziono danych w tym koszyku.");
-        }
+        if (!res.ok) throw new Error("Nie znaleziono danych.");
 
         const data = await res.json();
-        
-        // Sprawdzamy czy mamy do czynienia z wersją paczkowaną
-        let remoteHistory: HistoryItem[] = [];
+        let remoteCompressed: any[] = [];
 
+        // Logika scalania paczek
         if (data.manifest && typeof data.manifest.totalChunks === 'number') {
-            // Logika scalania paczek
             for (let i = 0; i < data.manifest.totalChunks; i++) {
                 const chunkKey = `chunk_${i}`;
                 if (data[chunkKey] && Array.isArray(data[chunkKey])) {
-                    remoteHistory = [...remoteHistory, ...data[chunkKey]];
+                    remoteCompressed = [...remoteCompressed, ...data[chunkKey]];
                 }
             }
-        } else if (data.history && Array.isArray(data.history)) {
-            // Stara wersja (jeden plik) - kompatybilność wsteczna
-            remoteHistory = data.history;
-        } else {
-             // Może user ma tylko 1 paczkę w "chunk_0"?
-             if (data.chunk_0 && Array.isArray(data.chunk_0)) {
-                 remoteHistory = data.chunk_0;
-             }
+        } else if (data.history) {
+             // Wsteczna kompatybilność (nieskompresowane)
+             // Raczej nie wystąpi, bo poprzednie próby failowały, ale warto mieć
+             remoteCompressed = compressHistory(data.history); 
         }
 
-        if (remoteHistory.length > 0) {
+        if (remoteCompressed.length > 0) {
+             // Dekompresja
+             const remoteHistory = decompressHistory(remoteCompressed);
+
              setHistory(prev => {
                 const combined = [...remoteHistory, ...prev];
                 const unique = combined.filter((item, index, self) => 
@@ -567,12 +566,13 @@ export default function LastoWeb() {
             setIsSettingsOpen(false);
             setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano i scalono ${remoteHistory.length} nagrań.` });
         } else {
-            throw new Error("Koszyk jest pusty lub ma nieznany format.");
+            throw new Error("Koszyk jest pusty.");
         }
     } catch (e: any) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message || 'Nie udało się pobrać danych.' });
+        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message });
     } finally {
         setIsProcessing(false);
+        setUploadStatus('');
     }
   };
 
@@ -597,9 +597,7 @@ export default function LastoWeb() {
         try {
             const imported = JSON.parse(e.target?.result as string);
             if (Array.isArray(imported)) {
-                for (const item of imported) {
-                    await dbSave(item);
-                }
+                for (const item of imported) await dbSave(item);
                 setHistory(prev => {
                     const combined = [...imported, ...prev];
                     const unique = combined.filter((item, index, self) => 
