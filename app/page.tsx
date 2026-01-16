@@ -937,152 +937,98 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* MODAL USTAWIEŃ */}
+     
+     {/* MODAL USTAWIEŃ - UKŁAD DWUKOLUMNOWY */}
       {isSettingsOpen && (
         <div 
             className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
             onClick={() => setIsSettingsOpen(false)}
         >
           <div 
-            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md space-y-8 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden relative max-h-[90vh]"
             onClick={(e) => e.stopPropagation()} 
           >
-            <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="absolute top-8 right-8 text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-            >
-                <CloseIcon />
-            </button>
+            <button onClick={() => setIsSettingsOpen(false)} className="absolute top-6 right-8 text-gray-400 hover:text-black dark:hover:text-white transition-colors z-10"><CloseIcon /></button>
 
-            <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
-            
-            <div className="space-y-8">
-                {/* 1. MOTYW (NA GÓRZE) */}
-                <div className="space-y-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Motyw</label>
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                        <button 
-                            onClick={() => setTheme('light')}
-                            className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-lg text-xs font-medium transition-all ${theme === 'light' ? 'bg-white shadow-sm text-black' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                        >
-                            <SunIcon />
-                            <span>Jasny</span>
-                        </button>
-                        <button 
-                            onClick={() => setTheme('dark')}
-                            className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-lg text-xs font-medium transition-all ${theme === 'dark' ? 'bg-gray-700 shadow-sm text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                        >
-                            <MoonIcon />
-                            <span>Ciemny</span>
-                        </button>
+            {/* LEWA STRONA: DUŻA INSTRUKCJA */}
+            <div className="w-full md:w-1/2 bg-gray-50/50 dark:bg-gray-800/30 p-12 border-r border-gray-100 dark:border-gray-800 overflow-y-auto">
+                <h3 className="text-3xl font-light tracking-tight mb-10 dark:text-white">Przewodnik konfiguracji</h3>
+                
+                <div className="space-y-12">
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-4 text-indigo-600 dark:text-indigo-400">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-current text-sm font-bold">1</span>
+                            <h4 className="font-bold uppercase tracking-widest text-xs">Transkrypcja (AssemblyAI)</h4>
+                        </div>
+                        <div className="pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
+                            <p>Klucz API jest niezbędny, aby sztuczna inteligencja mogła przetworzyć Twoje nagrania dźwiękowe na tekst.</p>
+                            <ul className="list-disc space-y-3 pl-4 font-medium">
+                                <li>Zarejestruj się na <a href="https://www.assemblyai.com/" target="_blank" className="underline text-indigo-600 dark:text-indigo-400">assemblyai.com</a></li>
+                                <li>Wejdź do zakładki <span className="text-black dark:text-white">Dashboard</span></li>
+                                <li>Skopiuj <span className="text-black dark:text-white">Your API Key</span> i wklej go w pole po prawej stronie</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-4 text-indigo-600 dark:text-indigo-400">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-current text-sm font-bold">2</span>
+                            <h4 className="font-bold uppercase tracking-widest text-xs">Synchronizacja (Pantry)</h4>
+                        </div>
+                        <div className="pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
+                            <p>Pantry ID pozwala na bezpieczne przechowywanie Twojej historii w chmurze, dzięki czemu nie zniknie ona po wyczyszczeniu danych przeglądarki.</p>
+                            <ul className="list-disc space-y-3 pl-4 font-medium">
+                                <li>Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="underline text-indigo-600 dark:text-indigo-400">getpantry.cloud</a></li>
+                                <li>Kliknij <span className="text-black dark:text-white">Create a Pantry</span></li>
+                                <li>ID znajdziesz w Dashboardzie - skopiuj je i wklej poniżej klucza AssemblyAI</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-
-            {/* 2. KLUCZE API (FORMULARZ) */}
-                {/* 2. KLUCZE API (FORMULARZ) */}
-<form 
-    className="space-y-8 pt-8 border-t border-gray-100 dark:border-gray-800"
-    onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}
->
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Konfiguracja połączeń</label>
-    
-    {/* AssemblyAI */}
-    <div className="space-y-4">
-        <div className="flex justify-between items-end px-1">
-            <label className="text-[11px] font-semibold text-gray-500 uppercase">AssemblyAI Key</label>
-            <details className="group cursor-pointer">
-                <summary className="list-none text-[10px] text-indigo-500 hover:text-indigo-600 font-medium">Jak uzyskać klucz?</summary>
-                <div className="absolute left-10 right-10 mt-2 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-[11px] leading-relaxed text-indigo-900 dark:text-indigo-300 z-50 shadow-xl border border-indigo-100 dark:border-indigo-900/50 animate-in fade-in slide-in-from-top-2">
-                    1. Załóż konto na <a href="https://www.assemblyai.com/" target="_blank" className="underline font-bold">AssemblyAI</a><br/>
-                    2. Przejdź do 'Dashboard'<br/>
-                    3. Skopiuj 'Your API Key'<br/>
-                    <p className="mt-2 opacity-70 italic">* Klucz pozwala na zamianę mowy na tekst (transkrypcję).</p>
-                </div>
-            </details>
-        </div>
-        <input 
-            type="password" 
-            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all" 
-            value={apiKey} 
-            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
-            placeholder="Wklej klucz AssemblyAI..." 
-        />
-    </div>
-
-    {/* Pantry Cloud */}
-    <div className="space-y-4">
-        <div className="flex justify-between items-end px-1">
-            <label className="text-[11px] font-semibold text-gray-500 uppercase">Pantry ID</label>
-            <details className="group cursor-pointer">
-                <summary className="list-none text-[10px] text-indigo-500 hover:text-indigo-600 font-medium">Jak uzyskać ID?</summary>
-                <div className="absolute left-10 right-10 mt-2 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-[11px] leading-relaxed text-indigo-900 dark:text-indigo-300 z-50 shadow-xl border border-indigo-100 dark:border-indigo-900/50 animate-in fade-in slide-in-from-top-2">
-                    1. Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="underline font-bold">getpantry.cloud</a><br/>
-                    2. Stwórz nową "Spiżarnię" (Create Pantry)<br/>
-                    3. Skopiuj unikalne ID z adresu URL lub dashboardu<br/>
-                    <p className="mt-2 opacity-70 italic">* Pantry służy do bezpiecznej synchronizacji Twoich nagrań w chmurze.</p>
-                </div>
-            </details>
-        </div>
-        <input 
-            type="password" 
-            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all"
-            placeholder="Wklej Pantry ID..."
-            value={pantryId}
-            onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
-        />
-    </div>
-</form>
-
-                {/* NOWE: BACKUP KLUCZY */}
-               <div className="space-y-4 pt-8 border-t border-gray-100 dark:border-gray-800">
-    <div className="px-1">
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Backup konfiguracji</label>
-        <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-            Zapisz klucze do pliku, aby szybko przywrócić dostęp na innym urządzeniu.
-        </p>
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-        <button 
-            onClick={exportKeys}
-            className="px-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider active:scale-95"
-        >
-            Pobierz klucze
-        </button>
-        <label className="px-4 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center active:scale-95">
-            Wczytaj klucze
-            <input type="file" className="hidden" accept=".json" onChange={importKeys} />
-        </label>
-    </div>
-</div>
-             
-                {/* 4. DYSK (IMPORT/EXPORT) */}
-                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={saveToDisk}
-                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                        >
-                            <span>Zapisz na dysk</span>
-                        </button>
-                        
-                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
-                            <span>Wczytaj z dysku</span>
-                            <input type="file" className="hidden" accept=".json" onChange={loadFromDisk} />
-                        </label>
-                    </div>
-                </div>
-
             </div>
 
-         <button 
-    id="save-btn" 
-    type="submit"
-    onClick={() => setIsSettingsOpen(false)} 
-    className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium"
->
-    Gotowe
-</button>
+            {/* PRAWA STRONA: POLA FORMULARZA */}
+            <div className="w-full md:w-1/2 p-12 overflow-y-auto space-y-12">
+                <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
+                
+                <div className="space-y-12">
+                    {/* WYBÓR MOTYWU */}
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1">Wygląd aplikacji</label>
+                        <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl">
+                            <button onClick={() => setTheme('light')} className={`flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl text-xs font-medium transition-all ${theme === 'light' ? 'bg-white shadow-sm text-black' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><SunIcon /><span>Jasny</span></button>
+                            <button onClick={() => setTheme('dark')} className={`flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl text-xs font-medium transition-all ${theme === 'dark' ? 'bg-gray-700 shadow-sm text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><MoonIcon /><span>Ciemny</span></button>
+                        </div>
+                    </div>
+
+                    {/* KLUCZE */}
+                    <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1">Dane dostępowe</label>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-semibold text-gray-500 uppercase ml-1">AssemblyAI Key</label>
+                                <input type="password" name="assembly-key" autoComplete="current-password" className="w-full bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} placeholder="Wklej klucz..." />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-semibold text-gray-500 uppercase ml-1">Pantry ID</label>
+                                <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
+                                <input type="password" name="password" autoComplete="current-password" className="w-full bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black dark:focus:ring-white transition-all" placeholder="Wklej ID..." value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} />
+                            </div>
+                        </div>
+                    </form>
+
+                    {/* BACKUP KLUCZY */}
+                    <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1">Kopia zapasowa kluczy</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={exportKeys} className="px-4 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider">Zapisz do pliku</button>
+                            <label className="px-4 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">Wczytaj plik<input type="file" className="hidden" accept=".json" onChange={importKeys} /></label>
+                        </div>
+                    </div>
+
+                    <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-[1.5rem] hover:scale-[1.02] transition-all font-bold text-sm shadow-xl active:scale-[0.98]">Zastosuj i zamknij</button>
+                </div>
+            </div>
           </div>
         </div>
       )}
