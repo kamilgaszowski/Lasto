@@ -130,6 +130,16 @@ export default function LastoWeb() {
     const savedTheme = localStorage.getItem('lastoTheme') as 'light' | 'dark' | null;
     if (savedTheme) setTheme(savedTheme);
     else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+  
+  if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then((granted) => {
+            if (granted) {
+                console.log("Storage will not be cleared except by explicit user action");
+            } else {
+                console.log("Storage may be cleared by the UA under storage pressure.");
+            }
+        });
+    }
   }, []);
 
   // --- 2. ZAPISYWANIE DANYCH (Z CZYSZCZENIEM PRZY BRAKU MIEJSCA) ---
@@ -624,66 +634,7 @@ export default function LastoWeb() {
                     </div>
                 </div>
 
-                {/* NOWA SEKCJA: KOPIA ZAPASOWA */}
-                <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Zarządzanie danymi</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        {/* PRZYCISK EKSPORTU */}
-                        <button 
-                            onClick={() => {
-                                const dataStr = JSON.stringify({ apiKey, history });
-                                const blob = new Blob([dataStr], { type: "application/json" });
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.download = `lasto_backup_${new Date().toISOString().slice(0,10)}.json`;
-                                link.href = url;
-                                link.click();
-                            }}
-                            className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                            </svg>
-                            <span>Pobierz kopię</span>
-                        </button>
-
-                        {/* PRZYCISK IMPORTU */}
-                        <label className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-xs font-medium flex items-center justify-center space-x-2 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                            </svg>
-                            <span>Wgraj kopię</span>
-                            <input 
-                                type="file" 
-                                className="hidden" 
-                                accept=".json"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const reader = new FileReader();
-                                    reader.onload = (event) => {
-                                        try {
-                                            const importedData = JSON.parse(event.target?.result as string);
-                                            if (importedData.apiKey) {
-                                                setApiKey(importedData.apiKey);
-                                                localStorage.setItem('assemblyAIKey', importedData.apiKey);
-                                            }
-                                            if (importedData.history && Array.isArray(importedData.history)) {
-                                                setHistory(importedData.history);
-                                                // Tutaj useEffect sam zapisze historię do localStorage
-                                            }
-                                            alert("Dane zostały pomyślnie przywrócone!");
-                                            setIsSettingsOpen(false);
-                                        } catch (err) {
-                                            alert("Błąd: Nieprawidłowy plik kopii zapasowej.");
-                                        }
-                                    };
-                                    reader.readAsText(file);
-                                }} 
-                            />
-                        </label>
-                    </div>
-                </div>
+              
             </div>
 
             <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium">Gotowe</button>
