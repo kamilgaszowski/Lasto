@@ -89,7 +89,7 @@ export default function LastoWeb() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   // UI States
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -381,7 +381,7 @@ export default function LastoWeb() {
                 <div className="flex items-center justify-center space-x-6 text-xl font-light text-gray-400">
                     <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
                     <span>Nagraj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                    <span>Pisz</span>
+                    <span>Twórz</span>
                 </div>
               </div>
               
