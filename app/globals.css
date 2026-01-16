@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* --- TA LINIA NAPRAWIA PRZEŁĄCZANIE TRYBÓW --- */
+/* Mówi Tailwindowi: "Tryb ciemny włącza się, gdy jest klasa .dark" */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+/* Ustawienia JASNE (Domyślne) */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light;
+}
+
+/* Ustawienia CIEMNE (Tylko gdy jest klasa .dark) */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  color-scheme: dark;
+}
+
+/* Aplikowanie kolorów */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
