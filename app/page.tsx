@@ -594,16 +594,14 @@ export default function LastoWeb() {
       </div>
 
       {/* GŁÓWNY PANEL */}
-      <div className="flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-colors duration-300 ml-0">
-        
-        {/* OVERLAY do zamykania Sidebara */}
-        {isSidebarOpen && (
+<div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 ${isSidebarOpen && selectedItem ? 'ml-80' : 'ml-0'}`}>        
+    {/* OVERLAY do zamykania Sidebara - aktywny tylko w widoku głównym (brak selectedItem) */}
+        {isSidebarOpen && !selectedItem && (
             <div 
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 transition-opacity"
+                className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-20 transition-opacity"
                 onClick={() => setIsSidebarOpen(false)}
             />
         )}
-
         {/* TOP BAR */}
         <div className="p-8 flex justify-between items-start z-10">
           <div className="flex items-center">
