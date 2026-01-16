@@ -803,7 +803,9 @@ export default function LastoWeb() {
                         <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300">
                         <EditIcon />
                         </span>
-                          {/* PRZYCISK: ZAPISZ W CHMURZE */}
+                         
+                    </div>
+                     {/* PRZYCISK: ZAPISZ W CHMURZE */}
                     <button 
                         onClick={saveToCloud}
                         disabled={!pantryId || isProcessing}
@@ -817,9 +819,8 @@ export default function LastoWeb() {
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
                             </svg>
                         )}
-                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz (Chmura)'}</span>
+                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz'}</span>
                     </button>
-                    </div>
                   </div>
                 )}
               </div>
