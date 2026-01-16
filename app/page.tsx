@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 interface Utterance {
   speaker: string;
   text: string;
-  [key: string]: any; // Pozwala na inne pola, które wytniemy przy kompresji
+  [key: string]: any; 
 }
 
 interface SpeakerMap {
@@ -76,24 +76,19 @@ const dbDelete = async (id: string) => {
   });
 };
 
-// --- KOMPRESJA DANYCH (KLUCZ DO SUKCESU) ---
-// Usuwamy zbędne metadane (words, confidence, timing) z AssemblyAI przed wysyłką
+// --- KOMPRESJA DANYCH ---
 const compressHistory = (history: HistoryItem[]) => {
     return history.map(item => ({
         id: item.id,
-        ti: item.title,     // Skracamy klucze
+        ti: item.title,
         da: item.date,
         sn: item.speakerNames,
-        // Zachowujemy tylko mówcę i tekst, usuwamy resztę
         u: item.utterances?.map(u => ({ s: u.speaker, t: u.text })) || [] 
-        // Uwaga: Pole 'content' (cały tekst) też usuwamy, bo można je odtworzyć z 'u', 
-        // a zajmuje dużo miejsca. Jeśli jest krytyczne, można zostawić jako 'c': item.content
     }));
 };
 
 const decompressHistory = (compressed: any[]): HistoryItem[] => {
     return compressed.map(item => {
-        // Odtwarzamy pełny tekst z wypowiedzi (jeśli contentu brak)
         const utterances = item.u?.map((u: any) => ({ speaker: u.s, text: u.t })) || [];
         const content = utterances.map((u: any) => u.text).join('\n');
 
@@ -101,13 +96,12 @@ const decompressHistory = (compressed: any[]): HistoryItem[] => {
             id: item.id,
             title: item.ti,
             date: item.da,
-            content: item.c || content, // Jeśli było 'c' to bierzemy, jak nie to generujemy
+            content: item.c || content,
             utterances: utterances,
             speakerNames: item.sn
         };
     });
 };
-
 
 // --- IKONY ---
 const RuneArrowLeft = () => (
@@ -183,9 +177,6 @@ export default function LastoWeb() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Stany synchronizacji
-  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
-  const [syncStartDate, setSyncStartDate] = useState('');
-  const [syncEndDate, setSyncEndDate] = useState('');
   const [uploadStatus, setUploadStatus] = useState<string>(''); 
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
@@ -372,99 +363,10 @@ export default function LastoWeb() {
     setIsDragging(false);
   };
 
-  // --- SYNCHRONIZACJA Z CHMURĄ (ASSEMBLY AI) ---
-  const syncWithCloud = async () => {
-    if (!apiKey) return;
-    
-    setIsSettingsOpen(false);
-    setIsProcessing(true);
-    setSyncProgress(null); 
-
-    try {
-        const response = await fetch('https://api.assemblyai.com/v2/transcript?limit=100&status=completed', {
-            headers: { 'Authorization': apiKey }
-        });
-        const data = await response.json();
-        
-        if (data.transcripts && Array.isArray(data.transcripts)) {
-            let filteredList = data.transcripts;
-            
-            if (syncStartDate) {
-                const start = new Date(syncStartDate).getTime();
-                filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() >= start);
-            }
-            if (syncEndDate) {
-                const end = new Date(syncEndDate);
-                end.setHours(23, 59, 59, 999);
-                filteredList = filteredList.filter((t: any) => new Date(t.created).getTime() <= end.getTime());
-            }
-
-            const missingTranscripts = filteredList.filter((remoteItem: any) => 
-                !history.some(localItem => localItem.id === remoteItem.id)
-            );
-
-            if (missingTranscripts.length === 0) {
-                setInfoModal({ isOpen: true, title: 'Info', message: 'Brak nowych nagrań w wybranym zakresie.' });
-                setIsProcessing(false);
-                return;
-            }
-
-            setSyncProgress({ current: 0, total: missingTranscripts.length });
-            let addedCount = 0;
-
-            for (let i = 0; i < missingTranscripts.length; i++) {
-                const item = missingTranscripts[i];
-                setSyncProgress({ current: i + 1, total: missingTranscripts.length });
-
-                try {
-                    const detailRes = await fetch(`https://api.assemblyai.com/v2/transcript/${item.id}`, {
-                        headers: { 'Authorization': apiKey }
-                    });
-                    const detail = await detailRes.json();
-                    
-                    let rawDate = item.created || new Date().toISOString();
-                    const createdDate = new Date(rawDate);
-                    const dateStr = createdDate.toLocaleDateString('pl-PL');
-                    const timeStr = createdDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-                    
-                    const newItem: HistoryItem = {
-                        id: detail.id,
-                        title: `Nagranie z ${dateStr}, ${timeStr}`,
-                        date: rawDate, 
-                        content: detail.text,
-                        utterances: detail.utterances,
-                        speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" }
-                    };
-                    
-                    await dbSave(newItem);
-
-                    setHistory(prev => {
-                        if (prev.some(p => p.id === newItem.id)) return prev;
-                        const updated = [newItem, ...prev];
-                        return updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                    });
-                    addedCount++;
-                    
-                } catch (err) {
-                    console.error("Błąd sieci:", item.id);
-                }
-            }
-            
-            setSyncProgress(null);
-            setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano ${addedCount} nagrań do bazy lokalnej.` });
-        }
-    } catch (e) {
-        setInfoModal({ isOpen: true, title: 'Błąd', message: 'Problem z połączeniem z AssemblyAI.' });
-    } finally {
-        setIsProcessing(false);
-        setSyncProgress(null);
-    }
-  };
-
-  // --- SYNCHRONIZACJA (PANTRY.CLOUD) - WERSJA Z KOMPRESJĄ I CHUNKINGIEM ---
+  // --- SYNCHRONIZACJA (PANTRY.CLOUD) ---
   const saveToCloud = async () => {
-    if (!pantryId) {
-        setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach!' });
+    if (!pantryId || !apiKey) {
+        setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Upewnij się, że wpisałeś oba klucze (AssemblyAI i Pantry ID) w ustawieniach.' });
         return;
     }
     
@@ -475,10 +377,7 @@ export default function LastoWeb() {
     setUploadStatus('Kompresowanie danych...');
 
     try {
-        // 1. Kompresja (usuwanie metadanych)
         const compressedHistory = compressHistory(history);
-
-        // 2. Dzielimy na paczki (po 50 skompresowanych nagrań - to teraz bezpieczne)
         const CHUNK_SIZE = 50;
         const chunks = [];
         for (let i = 0; i < compressedHistory.length; i += CHUNK_SIZE) {
@@ -487,7 +386,6 @@ export default function LastoWeb() {
 
         for (let i = 0; i < chunks.length; i++) {
             setUploadStatus(`Wysyłanie paczki ${i + 1} z ${chunks.length}...`);
-            
             const chunkKey = `chunk_${i}`;
             const payload = {
                 [chunkKey]: chunks[i],
@@ -506,7 +404,7 @@ export default function LastoWeb() {
             }
         }
 
-        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię (skompresowaną) w ${chunks.length} paczkach.` });
+        setInfoModal({ isOpen: true, title: 'Sukces', message: `Zapisano historię w ${chunks.length} paczkach.` });
 
     } catch (e: any) {
         console.error("Błąd Pantry:", e);
@@ -518,7 +416,10 @@ export default function LastoWeb() {
   };
 
   const loadFromCloud = async () => {
-    if (!pantryId) return;
+    if (!pantryId) {
+        setInfoModal({ isOpen: true, title: 'Brak ID', message: 'Wprowadź Pantry ID w ustawieniach.' });
+        return;
+    }
     
     const cleanId = pantryId.trim();
     const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
@@ -533,7 +434,6 @@ export default function LastoWeb() {
         const data = await res.json();
         let remoteCompressed: any[] = [];
 
-        // Logika scalania paczek
         if (data.manifest && typeof data.manifest.totalChunks === 'number') {
             for (let i = 0; i < data.manifest.totalChunks; i++) {
                 const chunkKey = `chunk_${i}`;
@@ -542,29 +442,35 @@ export default function LastoWeb() {
                 }
             }
         } else if (data.history) {
-             // Wsteczna kompatybilność (nieskompresowane)
-             // Raczej nie wystąpi, bo poprzednie próby failowały, ale warto mieć
              remoteCompressed = compressHistory(data.history); 
         }
 
         if (remoteCompressed.length > 0) {
-             // Dekompresja
              const remoteHistory = decompressHistory(remoteCompressed);
 
+             // Logika MERGE: Dodaj tylko te, których nie ma lokalnie
              setHistory(prev => {
-                const combined = [...remoteHistory, ...prev];
-                const unique = combined.filter((item, index, self) => 
-                    index === self.findIndex((t: any) => t.id === item.id)
+                // Filtrujemy nagrania z chmury: bierzemy tylko te, których ID nie ma w 'prev' (lokalnie)
+                const newRemoteItems = remoteHistory.filter(remoteItem => 
+                    !prev.some(localItem => localItem.id === remoteItem.id)
                 );
-                const sorted = unique.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                const addedCount = newRemoteItems.length;
+                if (addedCount === 0) {
+                    setInfoModal({ isOpen: true, title: 'Info', message: 'Twoja historia jest aktualna. Nie znaleziono nowych nagrań w chmurze.' });
+                    return prev;
+                }
+
+                const combined = [...newRemoteItems, ...prev];
+                const sorted = combined.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 
-                // Zapis do IndexedDB
-                sorted.forEach(async (item: HistoryItem) => await dbSave(item));
+                // Zapis nowych do DB
+                newRemoteItems.forEach(async (item: HistoryItem) => await dbSave(item));
                 
+                setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano ${addedCount} nowych nagrań.` });
                 return sorted;
             });
             setIsSettingsOpen(false);
-            setInfoModal({ isOpen: true, title: 'Sukces', message: `Pobrano i scalono ${remoteHistory.length} nagrań.` });
         } else {
             throw new Error("Koszyk jest pusty.");
         }
@@ -644,13 +550,11 @@ export default function LastoWeb() {
     <main className="flex h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
       
       {/* SIDEBAR */}
-      <div 
-        className={`flex flex-col bg-gray-50/50 dark:bg-gray-900/50 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'}`}
-      >
-        <div className={`flex flex-col h-full overflow-hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-80 -translate-x-full'}`}>
+        <div className="flex flex-col h-full overflow-hidden">
           <div className="p-8 flex justify-between items-center whitespace-nowrap">
             <h2 onClick={() => setIsSidebarOpen(false)} className="text-2xl font-light tracking-tight cursor-pointer">Archiwum</h2>
-            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white  cursor-pointer transition-colors">
+            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors">
               <RuneArrowLeft />
             </button>
           </div>
@@ -658,7 +562,7 @@ export default function LastoWeb() {
             {history.map((item) => (
               <button 
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => { setSelectedItem(item); setIsSidebarOpen(false); }}
                 className={`w-full text-left p-4 rounded-xl transition-all relative group ${
                   selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
                 }`}
@@ -687,8 +591,16 @@ export default function LastoWeb() {
       </div>
 
       {/* GŁÓWNY PANEL */}
-      <div className="flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-colors duration-300">
+      <div className="flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-colors duration-300 ml-0">
         
+        {/* OVERLAY do zamykania Sidebara */}
+        {isSidebarOpen && (
+            <div 
+                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 transition-opacity"
+                onClick={() => setIsSidebarOpen(false)}
+            />
+        )}
+
         {/* TOP BAR */}
         <div className="p-8 flex justify-between items-start z-10">
           <div className="flex items-center">
@@ -698,7 +610,7 @@ export default function LastoWeb() {
                </button>
              )}
              {selectedItem && (
-               <button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-black dark:hover:text-white text-xl font-light transition-colors">Wróć</button>
+               <button onClick={() => setSelectedItem(null)} className="text-3xl font-thin tracking-tighter text-gray-400 hover:text-black dark:hover:text-white transition-colors">Lasto</button>
              )}
           </div>
 
@@ -803,13 +715,12 @@ export default function LastoWeb() {
                         <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300">
                         <EditIcon />
                         </span>
-                         
                     </div>
-                     {/* PRZYCISK: ZAPISZ W CHMURZE */}
+                    {/* PRZYCISK: ZAPISZ W CHMURZE (HEADER) */}
                     <button 
                         onClick={saveToCloud}
                         disabled={!pantryId || isProcessing}
-                        className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="ml-auto px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         title={!pantryId ? "Skonfiguruj Pantry ID w ustawieniach" : "Zapisz zmiany w chmurze"}
                     >
                         {isProcessing ? (
@@ -819,7 +730,7 @@ export default function LastoWeb() {
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
                             </svg>
                         )}
-                        <span>{isProcessing ? 'Zapisywanie...' : 'Zapisz'}</span>
+                        <span>{isProcessing ? '...' : 'Zapisz'}</span>
                     </button>
                   </div>
                 )}
@@ -848,12 +759,8 @@ export default function LastoWeb() {
               />
               
               {/* DOLNY PASEK AKCJI W EDYCJI */}
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-end pt-2">
                 <div className="flex items-center space-x-3">
-                  
-
-                    <span className="text-[9px] text-gray-300 dark:text-gray-700">|</span>
-
                     {/* PRZYCISK: KOPIUJ */}
                     <button 
                         onClick={() => { navigator.clipboard.writeText(getDisplayText(selectedItem)); alert('Skopiowano!'); }} 
@@ -908,50 +815,7 @@ export default function LastoWeb() {
             <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
             
             <div className="space-y-8">
-                {/* INSTRUKCJA */}
-                {!apiKey && (
-                    <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm space-y-3">
-                        <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-500 font-medium">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-                            </svg>
-                            <span>Jak zacząć?</span>
-                        </div>
-                        <ol className="list-decimal list-inside text-gray-600 dark:text-gray-400 space-y-1 ml-1 leading-relaxed">
-                            <li>Wejdź na stronę <a href="https://www.assemblyai.com/dashboard" target="_blank" className="underline text-black dark:text-white font-medium">AssemblyAI</a>.</li>
-                            <li>Zarejestruj się (jest darmowe).</li>
-                            <li>Skopiuj klucz z sekcji <b>API Keys</b>.</li>
-                            <li>Wklej go w polu poniżej.</li>
-                        </ol>
-                    </div>
-                )}
-
-                <form 
-                    className="space-y-3"
-                    onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
-                >
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
-                    </label>
-                    <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
-                    <div className="relative">
-                        <input 
-                            type="password" 
-                            name="password"
-                            autoComplete="current-password"
-                            className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400 pr-10" 
-                            value={apiKey} 
-                            onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
-                            placeholder="Wklej klucz..." 
-                        />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                    </div>
-                </form>
-
+                {/* 1. MOTYW (NA GÓRZE) */}
                 <div className="space-y-3">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Motyw</label>
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
@@ -972,65 +836,40 @@ export default function LastoWeb() {
                     </div>
                 </div>
 
-                {/* SEKCJA: CHMURA (ASSEMBLY AI) */}
-                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Pobierz z AssemblyAI</label>
+                {/* 2. KLUCZE API (FORMULARZ) */}
+                <form 
+                    className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800"
+                    onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
+                >
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Klucze dostępowe</label>
                     
-                    {/* Wybór dat */}
-                    <div className="flex space-x-2">
-                        <div className="flex-1 space-y-1">
-                            <span className="text-[9px] text-gray-400 uppercase">Od:</span>
+                    {/* AssemblyAI */}
+                    <div className="space-y-2">
+                        <label className="text-[9px] text-gray-400 uppercase ml-1">AssemblyAI Key</label>
+                        <div className="relative">
                             <input 
-                                type="date" 
-                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-xs border-none"
-                                value={syncStartDate}
-                                onChange={(e) => setSyncStartDate(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                            <span className="text-[9px] text-gray-400 uppercase">Do:</span>
-                            <input 
-                                type="date" 
-                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-lg p-2 text-xs border-none"
-                                value={syncEndDate}
-                                onChange={(e) => setSyncEndDate(e.target.value)}
+                                type="password" 
+                                name="assembly-key"
+                                autoComplete="current-password"
+                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white" 
+                                value={apiKey} 
+                                onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                                placeholder="Wklej klucz AssemblyAI..." 
                             />
                         </div>
                     </div>
 
-                    <button 
-                        onClick={syncWithCloud}
-                        disabled={!apiKey || isProcessing}
-                        className="w-full px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        <span>Pobierz wybrane</span>
-                    </button>
-                </div>
-
-               {/* SEKCJA: PEŁNA SYNCHRONIZACJA (PANTRY CLOUD) */}
-                <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Chmura synchronizacji (<a href="https://getpantry.cloud/" target="_blank" className="underline">Pantry Cloud</a>)
-                    </label>
-                    
-                    {/* ZMIANA: Formularz, żeby Chrome zapamiętał ID */}
-                    <form 
-                        className="space-y-2"
-                        onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
-                    >
-                        {/* Trik dla menedżera haseł: Stała nazwa użytkownika */}
+                    {/* Pantry Cloud */}
+                    <div className="space-y-2">
+                        <label className="text-[9px] text-gray-400 uppercase ml-1">Pantry ID (Sync)</label>
                         <input type="text" name="username" value="LastoPantryID" autoComplete="username" className="hidden" readOnly />
-                        
                         <div className="relative">
                             <input 
                                 type="password" 
                                 name="password"
                                 autoComplete="current-password"
-                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white rounded-xl p-3 text-xs pr-10"
-                                placeholder="Pantry ID (np. 94380a04-...)"
+                                className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-3 text-xs pr-10 focus:ring-1 focus:ring-black dark:focus:ring-white"
+                                placeholder="Wklej Pantry ID..."
                                 value={pantryId}
                                 onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }}
                             />
@@ -1041,28 +880,33 @@ export default function LastoWeb() {
                                 </svg>
                             </div>
                         </div>
-                    </form>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={saveToCloud}
-                            disabled={!pantryId || isProcessing}
-                            className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                        >
-                            <span>⬆ Wyślij (Backup)</span>
-                        </button>
-                        
-                        <button 
-                            onClick={loadFromCloud}
-                            disabled={!pantryId || isProcessing}
-                            className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
-                        >
-                            <span>⬇ Pobierz (Sync)</span>
-                        </button>
                     </div>
+                    
+                    <p className="text-[9px] text-gray-400 leading-tight pt-1">
+                       * Oba klucze są wymagane do pełnego działania (Transkrypcja + Chmura).
+                    </p>
+                </form>
+
+                {/* 3. SYNCHRONIZACJA (PANTRY) */}
+                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <button 
+                        onClick={saveToCloud}
+                        disabled={!pantryId || isProcessing}
+                        className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                    >
+                        <span>⬆ Wyślij (Backup)</span>
+                    </button>
+                    
+                    <button 
+                        onClick={loadFromCloud}
+                        disabled={!pantryId || isProcessing}
+                        className="px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-xs font-medium flex items-center justify-center space-x-2"
+                    >
+                        <span>⬇ Pobierz (Sync)</span>
+                    </button>
                 </div>
 
-                {/* SEKCJA: MÓJ DYSK (IMPORT/EXPORT) */}
+                {/* 4. DYSK (IMPORT/EXPORT) */}
                 <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Kopia lokalna (Plik)</label>
                     <div className="grid grid-cols-2 gap-3">
