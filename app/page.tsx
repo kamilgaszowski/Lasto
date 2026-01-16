@@ -465,44 +465,69 @@ export default function LastoWeb() {
     }
   };
 
-  // --- SYNCHRONIZACJA (JSONBIN.IO) ---
- // --- SYNCHRONIZACJA (JSONBIN.IO) - WERSJA DEBUGUJĄCA ---
+
+ // --- SYNCHRONIZACJA (JSONBIN.IO) - WERSJA "FAILED TO FETCH" FIX ---
   const saveToCloudBin = async () => {
+    // 1. Walidacja wstępna
     if (!jsonBinSecret || !jsonBinId) {
-        setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Wprowadź Master Key i Bin ID w ustawieniach!' });
+        setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Uzupełnij Master Key i Bin ID w ustawieniach.' });
         return;
     }
     
-    // Usuwamy spacje, jeśli przypadkiem się skopiowały
+    // Usuwamy spacje
     const cleanSecret = jsonBinSecret.trim();
     const cleanId = jsonBinId.trim();
 
+    // Sprawdzamy czy format klucza wygląda na poprawny (Master Key zawsze zaczyna się od $)
+    if (!cleanSecret.startsWith('$2a$')) {
+        setInfoModal({ isOpen: true, title: 'Zły klucz', message: 'Master Key powinien zaczynać się od "$2a$10$..." Sprawdź czy skopiowałeś dobry klucz (API Keys -> Master Key).' });
+        return;
+    }
+
     setIsProcessing(true);
     try {
-        console.log("Wysyłanie do:", `https://api.jsonbin.io/v3/b/${cleanId}`);
+        console.log("Próba połączenia z:", `https://api.jsonbin.io/v3/b/${cleanId}`);
         
         const res = await fetch(`https://api.jsonbin.io/v3/b/${cleanId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': cleanSecret
+                'X-Master-Key': cleanSecret,
+                'X-Bin-Versioning': 'false' // WAŻNE: Wyłączamy wersjonowanie, żeby po prostu nadpisywać
             },
             body: JSON.stringify({ history: history })
         });
 
         if (res.ok) {
-            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano całą historię w chmurze JSONBin.' });
+            setInfoModal({ isOpen: true, title: 'Sukces', message: 'Zapisano historię w chmurze!' });
         } else {
-            // TERAZ ODCZYTAMY DOKŁADNY BŁĄD Z SERWERA
-            const errorData = await res.json();
-            console.error("Błąd JSONBin:", errorData);
-            throw new Error(errorData.message || `Kod błędu: ${res.status}`);
+            // Próba odczytania błędu
+            let errorMsg = `Kod: ${res.status}`;
+            try {
+                const errJson = await res.json();
+                errorMsg = errJson.message || errorMsg;
+            } catch (e) {}
+            
+            console.error("Błąd serwera:", errorMsg);
+            throw new Error(errorMsg);
         }
     } catch (e: any) {
+        console.error("Błąd połączenia:", e);
+        
+        let userMessage = "Błąd połączenia.";
+        
+        if (e.message.includes("Failed to fetch")) {
+             userMessage = "Przeglądarka zablokowała połączenie. 1. Wyłącz AdBlocka. 2. Sprawdź czy Bin ID jest poprawny (nie zawiera spacji ani dziwnych znaków).";
+        } else if (e.message.includes("401") || e.message.includes("403")) {
+             userMessage = "Odmowa dostępu. Sprawdź czy Master Key jest poprawny.";
+        } else if (e.message.includes("404")) {
+             userMessage = "Nie znaleziono Bina. Sprawdź czy Bin ID jest poprawny.";
+        }
+
         setInfoModal({ 
             isOpen: true, 
             title: 'Wystąpił błąd', 
-            message: `Serwer odrzucił połączenie: ${e.message}` 
+            message: userMessage
         });
     } finally {
         setIsProcessing(false);
