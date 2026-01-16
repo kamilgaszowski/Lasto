@@ -595,10 +595,11 @@ export default function LastoWeb() {
 
       {/* GŁÓWNY PANEL */}
 <div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 ${isSidebarOpen && selectedItem ? 'ml-80' : 'ml-0'}`}>        
-    {/* OVERLAY do zamykania Sidebara - aktywny tylko w widoku głównym (brak selectedItem) */}
-        {isSidebarOpen &&  (
+    {/* OVERLAY do zamykania Sidebara */}
+     
+        {isSidebarOpen && (
             <div 
-                className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-20 transition-opacity"
+                className="fixed inset-0 z-20 bg-transparent cursor-default"
                 onClick={() => setIsSidebarOpen(false)}
             />
         )}
