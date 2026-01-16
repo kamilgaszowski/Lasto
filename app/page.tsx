@@ -266,13 +266,49 @@ export default function LastoWeb() {
     setIsDeleteModalOpen(true);
   };
 
-  const executeDelete = async () => {
+ const executeDelete = async () => {
     if (!itemToDelete) return;
-    await dbDelete(itemToDelete);
-    setHistory(prev => prev.filter(item => item.id !== itemToDelete));
-    if (selectedItem?.id === itemToDelete) setSelectedItem(null);
-    setIsDeleteModalOpen(false);
-    setItemToDelete(null);
+    
+    setIsProcessing(true);
+    try {
+        // 1. Usuń lokalnie z bazy IndexedDB
+        await dbDelete(itemToDelete);
+        
+        // 2. Przygotuj nową historię dla stanu i chmury
+        const updatedHistory = history.filter(item => item.id !== itemToDelete);
+        
+        // 3. Zaktualizuj UI
+        setHistory(updatedHistory);
+        if (selectedItem?.id === itemToDelete) {
+            setSelectedItem(null);
+        }
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+
+        // 4. Synchronizacja z Pantry (jeśli ID istnieje)
+        if (pantryId) {
+            setUploadStatus('Aktualizowanie chmury...');
+            const cleanId = pantryId.trim();
+            const url = `https://getpantry.cloud/apiv1/pantry/${cleanId}/basket/lastoHistory`;
+            
+            // Kompresujemy i wysyłamy aktualny stan (bez usuniętego nagrania)
+            const compressed = compressHistory(updatedHistory);
+            
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    chunk_0: compressed.slice(0, 50),
+                    manifest: { totalChunks: Math.ceil(compressed.length / 50), timestamp: Date.now() }
+                })
+            });
+        }
+    } catch (e) {
+        console.error("Błąd podczas usuwania:", e);
+    } finally {
+        setIsProcessing(false);
+        setUploadStatus('');
+    }
   };
 
   const saveNewTitle = async () => {
@@ -950,30 +986,29 @@ export default function LastoWeb() {
       )}
 
       {/* MODAL POTWIERDZENIA USUWANIA */}
+   
       {isDeleteModalOpen && (
         <div 
             className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
             onClick={() => setIsDeleteModalOpen(false)}
+            // DODANE: Obsługa Enter i Escape
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') executeDelete();
+                if (e.key === 'Escape') setIsDeleteModalOpen(false);
+            }}
+            tabIndex={0} 
+            autoFocus // Ważne, żeby modal od razu przejął kontrolę nad klawiaturą
         >
           <div 
             className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center"
             onClick={(e) => e.stopPropagation()} 
           >
-            <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-500 mb-4">
-               <TrashIcon />
-            </div>
-            
-            <div className="space-y-2">
-                <h3 className="text-xl font-medium dark:text-white">Usunąć nagranie?</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Tej operacji nie można cofnąć.
-                </p>
-            </div>
+            {/* ... zawartość ikonki i tekstu ... */}
 
             <div className="flex space-x-3 pt-2">
                 <button 
                     onClick={() => setIsDeleteModalOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium"
                 >
                     Anuluj
                 </button>
@@ -981,7 +1016,7 @@ export default function LastoWeb() {
                     onClick={executeDelete}
                     className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20"
                 >
-                    Usuń
+                    Usuń (Enter)
                 </button>
             </div>
           </div>
