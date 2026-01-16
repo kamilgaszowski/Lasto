@@ -175,9 +175,12 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
-  // Stany synchronizacji
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>(''); 
+  const [syncStartDate, setSyncStartDate] = useState('');
+  const [syncEndDate, setSyncEndDate] = useState('');
+  // Stany synchronizacji
+ 
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [isDragging, setIsDragging] = useState(false);
