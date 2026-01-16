@@ -8,7 +8,6 @@ interface Utterance {
   text: string;
 }
 
-// Mapa imion: np. { "A": "Marek", "B": "Kasia" }
 interface SpeakerMap {
   [key: string]: string;
 }
@@ -23,12 +22,6 @@ interface HistoryItem {
 }
 
 // --- IKONY ---
-
-const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-  </svg>
-);
 const RuneArrowLeft = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
     <path d="M16 4l-10 8 10 8" />
@@ -66,6 +59,12 @@ const CloseIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+  </svg>
+);
+
 const SunIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
@@ -78,6 +77,13 @@ const MoonIcon = () => (
     </svg>
 );
 
+// Ikonka "Info" do modala sukcesu
+const InfoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+    </svg>
+);
+
 export default function LastoWeb() {
   // --- STAN APLIKACJI ---
   const [apiKey, setApiKey] = useState('');
@@ -86,13 +92,17 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // UI States
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Usuwanie
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  // UI States
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(320);
-  const [isResizing, setIsResizing] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+
+  // Info Modal (zamiast alertów)
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
   // Edycja & Motyw
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -100,29 +110,27 @@ export default function LastoWeb() {
   
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // --- 1. ODCZYT DANYCH (Z AUTO-NAPRAWĄ DUPLIKATÓW) ---
+  // --- 1. ODCZYT DANYCH ---
   useEffect(() => {
     const savedKey = localStorage.getItem('assemblyAIKey') || '';
     const savedHistoryRaw = localStorage.getItem('lastoHistory');
     
     setApiKey(savedKey);
 
+    if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then((granted) => {
+             console.log(granted ? "Storage persistent: OK" : "Storage persistent: Failed");
+        });
+    }
+
     if (savedHistoryRaw) {
         try {
             const parsed = JSON.parse(savedHistoryRaw);
             if (Array.isArray(parsed) && parsed.length > 0) {
-                // Filtrujemy duplikaty ID
                 const uniqueHistory = parsed.filter((item, index, self) => 
-                    index === self.findIndex((t) => (
-                        t.id === item.id
-                    ))
+                    index === self.findIndex((t) => (t.id === item.id))
                 );
-                
                 setHistory(uniqueHistory);
-                
-                if (uniqueHistory.length !== parsed.length) {
-                    console.log("LASTO: Usunięto zduplikowane wpisy z historii.");
-                }
             }
         } catch(e) { console.error(e); }
     }
@@ -130,19 +138,9 @@ export default function LastoWeb() {
     const savedTheme = localStorage.getItem('lastoTheme') as 'light' | 'dark' | null;
     if (savedTheme) setTheme(savedTheme);
     else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
-  
-  if (navigator.storage && navigator.storage.persist) {
-        navigator.storage.persist().then((granted) => {
-            if (granted) {
-                console.log("Storage will not be cleared except by explicit user action");
-            } else {
-                console.log("Storage may be cleared by the UA under storage pressure.");
-            }
-        });
-    }
   }, []);
 
-  // --- 2. ZAPISYWANIE DANYCH (Z CZYSZCZENIEM PRZY BRAKU MIEJSCA) ---
+  // --- 2. ZAPISYWANIE DANYCH ---
   useEffect(() => {
     if (history.length === 0) return;
 
@@ -192,23 +190,18 @@ export default function LastoWeb() {
     setSelectedItem(updatedItem);
   };
 
- // 1. Ta funkcja tylko otwiera okno z pytaniem
+  // Usuwanie
   const confirmDelete = (id: string) => {
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  // 2. Ta funkcja faktycznie usuwa (podpięta pod przycisk "Usuń" w modalu)
   const executeDelete = () => {
     if (!itemToDelete) return;
-
     setHistory(prev => prev.filter(item => item.id !== itemToDelete));
-    
     if (selectedItem?.id === itemToDelete) {
       setSelectedItem(null);
     }
-    
-    // Resetujemy stan i zamykamy okno
     setIsDeleteModalOpen(false);
     setItemToDelete(null);
   };
@@ -221,6 +214,7 @@ export default function LastoWeb() {
     setIsEditingTitle(false);
   };
 
+  // --- UPLOAD ---
   const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
@@ -239,9 +233,7 @@ export default function LastoWeb() {
             speakerNames: { "A": "Rozmówca A", "B": "Rozmówca B" } 
           };
           setHistory(prev => {
-             if (prev.some(item => item.id === newItem.id)) {
-                 return prev;
-             }
+             if (prev.some(item => item.id === newItem.id)) return prev;
              return [newItem, ...prev];
           });
           setSelectedItem(newItem);
@@ -256,14 +248,8 @@ export default function LastoWeb() {
     }, 3000);
   };
   
-  // --- NOWA LOGIKA UPLOADU (OBSŁUGUJE INPUT I DRAG & DROP) ---
-  
   const processFile = async (file: File) => {
-    if (!apiKey) {
-        alert("Wprowadź najpierw klucz API w ustawieniach.");
-        setIsSettingsOpen(true);
-        return;
-    }
+    if (!apiKey) return;
     
     setIsProcessing(true);
     setStatus('Wysyłanie...');
@@ -293,9 +279,30 @@ export default function LastoWeb() {
     }
   };
 
-  // --- SYNCHRONIZACJA Z CHMURĄ ---
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
+  };
 
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file && apiKey) processFile(file);
+  };
 
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    if (apiKey) setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setIsDragging(false);
+  };
+
+  // --- SYNCHRONIZACJA Z CHMURĄ (NAPRAWIONA: DATA + MODAL) ---
+ // --- SYNCHRONIZACJA Z CHMURĄ (Z POPRAWNĄ DATĄ HISTORYCZNĄ) ---
   const syncWithCloud = async () => {
     if (!apiKey) return;
     setIsProcessing(true);
@@ -375,55 +382,21 @@ export default function LastoWeb() {
         setIsProcessing(false);
     }
   };
-
-  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) processFile(file);
-  };
-
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  };
-
-  const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (event: React.DragEvent) => {
-    event.preventDefault();
-    setIsDragging(false);
-  };
-
-
+  // --- LOGIKA SWIFT (isJunk) ---
   const getDisplayText = (item: HistoryItem) => {
     if (!item.utterances || item.utterances.length === 0) return item.content;
 
-    // Funkcja identyczna jak w Swift: isJunk(_ text: String, index: Int) -> Bool
     const isJunk = (text: string, index: number) => {
         const badWords = ["prosimy", "poczekać", "zawiesił", "połączenie", "kontynuować", "wkrótce", "rozmowę", "będziesz", "mógł", "oczekiwanie"];
         const lowerText = text.toLowerCase();
-
-        // Zasada 1: Pierwsze 2 linie (index < 2) - usuń jeśli mają jakiekolwiek złe słowo
-        if (index < 2) {
-            return badWords.some(word => lowerText.includes(word));
-        }
-
-        // Zasada 2: Reszta linii - usuń jeśli mają 3 lub więcej złych słów (duże zagęszczenie)
+        if (index < 2) return badWords.some(word => lowerText.includes(word));
         let hitCount = 0;
-        badWords.forEach(word => {
-            if (lowerText.includes(word)) hitCount++;
-        });
-        
+        badWords.forEach(word => { if (lowerText.includes(word)) hitCount++; });
         return hitCount >= 3;
     };
 
-    // Filtrujemy i mapujemy
     return item.utterances
-        .filter((u, index) => !isJunk(u.text, index)) // Usuń śmieci
+        .filter((u, index) => !isJunk(u.text, index))
         .map(u => {
             const speakerKey = (u.speaker === 'A' || u.speaker === '1') ? 'A' : 'B';
             const name = getSpeakerName(item, speakerKey);
@@ -451,16 +424,15 @@ export default function LastoWeb() {
               <button 
                 key={item.id}
                 onClick={() => setSelectedItem(item)}
-                // Dodano klasę 'group' i 'relative' do rodzica
                 className={`w-full text-left p-4 rounded-xl transition-all relative group ${
                   selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'
                 }`}
               >
-                {/* PRZYCISK USUWANIA (X) - Widoczny po najechaniu (group-hover) */}
+                {/* PRZYCISK USUWANIA (X) */}
                 <div 
                   onClick={(e) => { 
-                    e.stopPropagation(); // Ważne! Żeby nie otwierało nagrania przy klikaniu w X
-                   confirmDelete(item.id);
+                    e.stopPropagation(); 
+                    confirmDelete(item.id); 
                   }}
                   className="absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all z-10"
                 >
@@ -492,7 +464,7 @@ export default function LastoWeb() {
                </button>
              )}
              {selectedItem && (
-               <button onClick={() => setSelectedItem(null)} className="text-5xl font-thin tracking-tighter text-gray-900 dark:text-white transition-colors cursor-pointer">Lasto</button>
+               <button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-black dark:hover:text-white text-xl font-light transition-colors">Wróć</button>
              )}
           </div>
 
@@ -515,19 +487,20 @@ export default function LastoWeb() {
                 <div className="flex items-center justify-center space-x-6 text-xl font-light text-gray-400">
                     <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
                     <span>Nagraj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                    <span>Twórz</span>
+                    <span>Pisz</span>
                 </div>
               </div>
               
-             <div className="flex flex-col space-y-4 items-center pt-8 min-h-[100px]">
+              <div className="flex flex-col space-y-4 items-center pt-8 min-h-[100px]">
                 {isProcessing ? (
-                  /* 1. Co pokazać, gdy przycisk zniknie? (np. pulsujący tekst) */
-                  <div className="flex flex-col items-center space-y-2 animate-in fade-in zoom-in duration-300">
+                  <div className="flex flex-col items-center space-y-3 animate-in fade-in zoom-in duration-300">
                      <div className="w-6 h-6 border-2 border-gray-300 border-t-black dark:border-gray-700 dark:border-t-white rounded-full animate-spin"/>
-                     <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">Przetwarzanie...</span>
+                     <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">
+                        {status || 'Przetwarzanie...'}
+                     </span>
                   </div>
                 ) : !apiKey ? (
-                  /* NOWY STAN: BRAK KLUCZA -> PRZYCISK PROWADZĄCY DO USTAWIEŃ */
+                   /* EMPTY STATE: BRAK KLUCZA */
                   <div className="flex flex-col items-center space-y-4">
                     <button 
                         onClick={() => setIsSettingsOpen(true)}
@@ -540,7 +513,7 @@ export default function LastoWeb() {
                     </p>
                   </div>
                 ) : (
-                  /* STAN NORMALNY: JEST KLUCZ -> PRZYCISK UPLOADU */
+                   /* STANDARD STATE: DRAG & DROP */
                   <>
                     <label 
                         onDragOver={handleDragOver}
@@ -566,7 +539,6 @@ export default function LastoWeb() {
             /* WIDOK EDYCJI */
             <div className="w-full max-w-5xl h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
               
-              {/* EDYTOWALNY TYTUŁ */}
               <div className="flex items-end justify-between border-b border-gray-50 dark:border-gray-800 pb-6 min-h-[80px]">
                 {isEditingTitle ? (
                   <div className="flex items-center w-full space-x-4">
@@ -583,16 +555,13 @@ export default function LastoWeb() {
                   </div>
                 ) : (
                   <div className="flex items-center w-full group">
-                    
-                    {/* NOWA IKONA ŚMIETNIKA PO LEWEJ */}
                     <button 
-                     onClick={() => confirmDelete(selectedItem.id)}
+                      onClick={() => confirmDelete(selectedItem.id)}
                       className="mr-4 text-gray-300 hover:text-red-500 transition-colors p-2"
                       title="Usuń nagranie"
                     >
                       <TrashIcon />
                     </button>
-
                     <div className="flex items-center w-full cursor-pointer" onClick={() => { setEditedTitle(selectedItem.title); setIsEditingTitle(true); }}>
                         <h1 className="text-4xl font-thin tracking-tight truncate max-w-2xl dark:text-white">{selectedItem.title}</h1>
                         <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300">
@@ -603,7 +572,6 @@ export default function LastoWeb() {
                 )}
               </div>
 
-              {/* POLA EDYCJI ROZMÓWCÓW */}
               <div className="flex space-x-4 animate-in fade-in duration-300">
                   <input 
                     className="flex-1 bg-gray-100 dark:bg-gray-900 dark:text-white border-none rounded-lg p-3 text-xs focus:ring-1 focus:ring-black dark:focus:ring-white placeholder-gray-400" 
@@ -630,23 +598,24 @@ export default function LastoWeb() {
           )}
         </div>
 
-        {/* STATUS BAR */}
-        {status && (
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-[10px] tracking-[0.2em] uppercase shadow-2xl animate-pulse">
-            {status}
-          </div>
-        )}
-        {/* NOWA STOPKA (FOOTER) */}
-        <div className="absolute bottom-6 right-8 text-[10px] text-gray-200 dark:text-gray-800 uppercase tracking-widest flex items-center space-x-3 pointer-events-none select-none z-0">
-            <span className="italic font-serif">Lasto beth nîn</span>
-            <span className="text-xs opacity-50">ᛟ</span>
-            <span>developed by Kamil Gąszowski</span>
-            <span className="text-xs opacity-50">ᛟ</span>
-            <span>{new Date().getFullYear()}</span>
+        {/* STOPKA */}
+        <div className="absolute bottom-6 right-8 flex items-center space-x-4 pointer-events-none select-none z-0">
+            <div className="flex items-center space-x-1.5 opacity-40">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-[9px] uppercase tracking-widest text-gray-400 font-medium">Auto-save on</span>
+            </div>
+
+            <div className="text-[10px] text-gray-200 dark:text-gray-800 uppercase tracking-widest flex items-center space-x-3">
+                <span className="italic font-serif">Lasto beth nîn</span>
+                <span className="text-xs opacity-50">ᛟ</span>
+                <span>developed by Kamil Gąszowski</span>
+                <span className="text-xs opacity-50">ᛟ</span>
+                <span>{new Date().getFullYear()}</span>
+            </div>
         </div>
       </div>
 
-     {/* MODAL USTAWIEŃ */}
+      {/* MODAL USTAWIEŃ */}
       {isSettingsOpen && (
         <div 
             className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
@@ -684,30 +653,24 @@ export default function LastoWeb() {
                     </div>
                 )}
 
-                <div className="space-y-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
-                    </label>
-                   <form 
+                <form 
                     className="space-y-3"
                     onSubmit={(e) => { e.preventDefault(); document.getElementById('save-btn')?.click(); }}
                 >
-                   
-                    
-                    {/* Trik dla menedżera haseł: Ukryte pole username */}
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                        Klucz API <a href="https://www.assemblyai.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-black dark:hover:text-white transition-colors">AssemblyAI</a>
+                    </label>
                     <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
-
                     <div className="relative">
                         <input 
                             type="password" 
-                            name="password" // Przeglądarka potraktuje to jako hasło
+                            name="password"
                             autoComplete="current-password"
                             className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none rounded-xl p-4 focus:ring-2 focus:ring-black dark:focus:ring-white transition-all placeholder-gray-400 pr-10" 
                             value={apiKey} 
                             onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
                             placeholder="Wklej klucz..." 
                         />
-                        {/* Ikona kłódki sugerująca bezpieczeństwo */}
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                 <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
@@ -718,7 +681,6 @@ export default function LastoWeb() {
                         Wskazówka: Zezwól przeglądarce na zapisanie tego klucza jako hasła, aby nie wpisywać go ponownie po czyszczeniu historii.
                     </p>
                 </form>
-                </div>
 
                 <div className="space-y-3">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Motyw</label>
@@ -740,9 +702,7 @@ export default function LastoWeb() {
                     </div>
                 </div>
 
-              
-            </div>
-{/* SEKCJA CHMURY */}
+                {/* SEKCJA CHMURY */}
                 <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Synchronizacja</label>
                     
@@ -765,16 +725,19 @@ export default function LastoWeb() {
                         Uwaga: Niestandardowe nazwy rozmówców nie zostaną przywrócone.
                     </p>
                 </div>
-<button 
-                id="save-btn" // Dodane ID
+            </div>
+
+            <button 
+                id="save-btn" 
                 onClick={() => setIsSettingsOpen(false)} 
                 className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium"
             >
                 Gotowe
-            </button>  
-                    </div>
+            </button>
+          </div>
         </div>
       )}
+
       {/* MODAL POTWIERDZENIA USUWANIA */}
       {isDeleteModalOpen && (
         <div 
@@ -811,8 +774,39 @@ export default function LastoWeb() {
                 </button>
             </div>
           </div>
+        </div>
+      )}
 
-       
+      {/* MODAL INFORMACYJNY (INFO) */}
+      {infoModal.isOpen && (
+        <div 
+            className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300"
+            onClick={() => setInfoModal({ ...infoModal, isOpen: false })}
+        >
+          <div 
+            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center"
+            onClick={(e) => e.stopPropagation()} 
+          >
+            <div className="mx-auto w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-900 dark:text-white mb-4">
+               <InfoIcon />
+            </div>
+            
+            <div className="space-y-2">
+                <h3 className="text-xl font-medium dark:text-white">{infoModal.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {infoModal.message}
+                </p>
+            </div>
+
+            <div className="pt-2">
+                <button 
+                    onClick={() => setInfoModal({ ...infoModal, isOpen: false })}
+                    className="w-full px-4 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors text-sm font-medium"
+                >
+                    OK
+                </button>
+            </div>
+          </div>
         </div>
       )}
     </main>
