@@ -181,7 +181,11 @@ export default function LastoWeb() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // Stany powiadomień (badges)
   const [showCopyBadge, setShowCopyBadge] = useState(false);
+  const [showSaveBadge, setShowSaveBadge] = useState(false);
+  const [showSyncBadge, setShowSyncBadge] = useState<{show: boolean, msg: string}>({show: false, msg: ''});
 
   const deleteModalRef = useRef<HTMLDivElement>(null);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
@@ -307,35 +311,7 @@ export default function LastoWeb() {
     await dbSave(updatedItem);
   };
 
-  const exportKeys = () => {
-    const keys = { assemblyAIKey: apiKey, pantryId: pantryId };
-    const blob = new Blob([JSON.stringify(keys, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = `lasto_keys_backup.json`;
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importKeys = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const imported = JSON.parse(e.target?.result as string);
-        if (imported.assemblyAIKey || imported.pantryId) {
-          if (imported.assemblyAIKey) { setApiKey(imported.assemblyAIKey); localStorage.setItem('assemblyAIKey', imported.assemblyAIKey); }
-          if (imported.pantryId) { setPantryId(imported.pantryId); localStorage.setItem('pantryId', imported.pantryId); }
-          setInfoModal({ isOpen: true, title: 'Sukces', message: 'Klucze zostały zaimportowane.' });
-        }
-      } catch (err) { setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nieprawidłowy format pliku.' }); }
-    };
-    reader.readAsText(file);
-  };
-
-  // --- AUTOMATYCZNY BACKUP ---
+  // --- AUTOMATYKA PANTRY ---
   const saveToCloudWithData = async (dataToSave: HistoryItem[]) => {
     if (!pantryId) return;
     try {
@@ -351,6 +327,7 @@ export default function LastoWeb() {
     } catch (e) { console.error("Auto-backup failed", e); }
   };
 
+  // --- UPLOAD (ASSEMBLY AI) ---
   const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
@@ -405,32 +382,35 @@ export default function LastoWeb() {
     if (file && apiKey) processFile(file);
   };
 
+  // --- MANUALNA SYNCHRONIZACJA (Z POWIADOMIENIAMI) ---
   const saveToCloud = async () => {
     if (!pantryId || !apiKey) {
         setInfoModal({ isOpen: true, title: 'Brak kluczy', message: 'Upewnij się, że wpisałeś oba klucze w ustawieniach.' });
         return;
     }
     setIsProcessing(true);
-    setUploadStatus('Kompresowanie...');
     try {
         const compressedHistory = compressHistory(history);
         const CHUNK_SIZE = 50;
         for (let i = 0; i < compressedHistory.length; i += CHUNK_SIZE) {
-            setUploadStatus(`Wysyłanie...`);
             await fetch(`https://getpantry.cloud/apiv1/pantry/${pantryId.trim()}/basket/lastoHistory`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ [`chunk_${Math.floor(i/CHUNK_SIZE)}`]: compressedHistory.slice(i, i + CHUNK_SIZE), manifest: { totalChunks: Math.ceil(compressedHistory.length/CHUNK_SIZE), timestamp: Date.now() } })
             });
         }
-        setInfoModal({ isOpen: true, title: 'Sukces', message: 'Historia zsynchronizowana.' });
-    } catch (e: any) { setInfoModal({ isOpen: true, title: 'Błąd', message: e.message }); }
-    finally { setIsProcessing(false); setUploadStatus(''); }
+        setShowSyncBadge({show: true, msg: 'Wysłano'});
+        setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
+        setShowSaveBadge(true); // Jeśli kliknięte z edycji
+        setTimeout(() => setShowSaveBadge(false), 2000);
+    } catch (e: any) { 
+        setInfoModal({ isOpen: true, title: 'Błąd', message: e.message }); 
+    }
+    finally { setIsProcessing(false); }
   };
 
   const loadFromCloud = async () => {
     if (!pantryId) return;
     setIsProcessing(true);
-    setUploadStatus('Pobieranie...');
     try {
         const res = await fetch(`https://getpantry.cloud/apiv1/pantry/${pantryId.trim()}/basket/lastoHistory`, { method: 'GET' });
         if (!res.ok) throw new Error("Nie znaleziono danych.");
@@ -445,14 +425,49 @@ export default function LastoWeb() {
              const remoteHistory = decompressHistory(remoteCompressed);
              setHistory(prev => {
                 const newItems = remoteHistory.filter(r => !prev.some(l => l.id === r.id));
-                if (newItems.length === 0) { setInfoModal({ isOpen: true, title: 'Info', message: 'Historia jest aktualna.' }); return prev; }
+                if (newItems.length === 0) { 
+                    setShowSyncBadge({show: true, msg: 'Aktualne'});
+                    setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
+                    return prev; 
+                }
                 newItems.forEach(async (item) => await dbSave(item));
+                setShowSyncBadge({show: true, msg: `Pobrano ${newItems.length}`});
+                setTimeout(() => setShowSyncBadge({show: false, msg: ''}), 2000);
                 return [...newItems, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             });
             setIsSettingsOpen(false);
         }
     } catch (e: any) { setInfoModal({ isOpen: true, title: 'Błąd', message: e.message }); }
-    finally { setIsProcessing(false); setUploadStatus(''); }
+    finally { setIsProcessing(false); }
+  };
+
+  // --- OBSŁUGA DYSKU ---
+  const exportKeys = () => {
+    const keys = { assemblyAIKey: apiKey, pantryId: pantryId };
+    const blob = new Blob([JSON.stringify(keys, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `lasto_keys_backup.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importKeys = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target?.result as string);
+        if (imported.assemblyAIKey || imported.pantryId) {
+          if (imported.assemblyAIKey) { setApiKey(imported.assemblyAIKey); localStorage.setItem('assemblyAIKey', imported.assemblyAIKey); }
+          if (imported.pantryId) { setPantryId(imported.pantryId); localStorage.setItem('pantryId', imported.pantryId); }
+          setInfoModal({ isOpen: true, title: 'Sukces', message: 'Klucze zostały zaimportowane.' });
+        }
+      } catch (err) { setInfoModal({ isOpen: true, title: 'Błąd', message: 'Nieprawidłowy format pliku.' }); }
+    };
+    reader.readAsText(file);
   };
 
   const saveToDisk = () => {
@@ -520,7 +535,12 @@ export default function LastoWeb() {
             <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors"><RuneArrowLeft /></button>
           </div>
 
-          <div className="px-6 pb-6 flex space-x-2">
+          <div className="px-6 pb-6 flex space-x-2 relative">
+              {showSyncBadge.show && (
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black text-[9px] px-2 py-1 rounded-full font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 z-50">
+                  {showSyncBadge.msg}
+                </div>
+              )}
               <button onClick={loadFromCloud} disabled={!pantryId || isProcessing} className="flex-1 py-2 px-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] uppercase font-bold tracking-wider hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg><span>Pobierz</span></button>
               <button onClick={saveToCloud} disabled={!pantryId || isProcessing} className="flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] uppercase font-bold tracking-wider hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg><span>Wyślij</span></button>
           </div>
@@ -551,7 +571,10 @@ export default function LastoWeb() {
              {!isSidebarOpen && (
                <button onClick={() => setIsSidebarOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white transition-colors cursor-pointer"><RuneArrowRight /></button>
              )}
-             <button onClick={() => setSelectedItem(null)} className={`relative z-40 text-3xl font-thin tracking-tighter transition-all duration-300 hover:text-black dark:hover:text-white ${selectedItem ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>Lasto</button>
+             {/* Napis Lasto widoczny tylko w widoku nagrania */}
+             {selectedItem && (
+               <button onClick={() => setSelectedItem(null)} className={`relative z-40 text-3xl font-thin tracking-tighter transition-all duration-300 text-gray-400 hover:text-black dark:hover:text-white`}>Lasto</button>
+             )}
           </div>
           <button onClick={() => setIsSettingsOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"><SettingsIcon /></button>
         </div>
@@ -559,10 +582,14 @@ export default function LastoWeb() {
         <div className="flex-1 flex flex-col items-center justify-center px-12 pb-12 overflow-hidden">
           {!selectedItem ? (
             <div className="text-center space-y-12 animate-in fade-in zoom-in duration-700">
-              <div className="space-y-6 text-xl font-light text-gray-400">
-                  <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                  <span>Nagraj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                  <span>Pisz</span>
+              <div className="space-y-6">
+                {/* Duży napis Lasto na ekranie głównym */}
+                <div className="text-9xl font-thin tracking-tighter text-gray-900 dark:text-white transition-colors">Lasto</div>
+                <div className="flex items-center justify-center space-x-6 text-xl font-light text-gray-400">
+                    <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
+                    <span>Nagraj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
+                    <span>Pisz</span>
+                </div>
               </div>
               <div className="flex flex-col space-y-4 items-center pt-8 min-h-[100px]">
                 {isProcessing ? (
@@ -591,13 +618,22 @@ export default function LastoWeb() {
                     <button onClick={saveNewTitle} className="text-green-600 hover:text-green-800 p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"><CheckIcon /></button>
                   </div>
                 ) : (
-                  <div className="flex items-center w-full group">
+                  <div className="flex items-center w-full group relative">
                     <button onClick={() => confirmDelete(selectedItem.id)} className="mr-4 text-gray-300 hover:text-red-500 transition-colors p-2" title="Usuń nagranie"><TrashIcon /></button>
                     <div className="flex items-center w-full cursor-pointer" onClick={() => { setEditedTitle(selectedItem.title); setIsEditingTitle(true); }}>
                         <h1 className="text-4xl font-thin tracking-tight truncate max-w-2xl dark:text-white">{selectedItem.title}</h1>
                         <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300"><EditIcon /></span>
                     </div>
-                    <button onClick={saveToCloud} disabled={!pantryId || isProcessing} className="ml-auto px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2">{isProcessing ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>}<span>Zapisz</span></button>
+                    
+                    <div className="relative ml-auto">
+                        {showSaveBadge && (
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black text-[10px] px-3 py-1.5 rounded-full font-bold uppercase tracking-widest animate-in fade-in slide-in-from-bottom-2 z-50">Zapisano</div>
+                        )}
+                        <button onClick={saveToCloud} disabled={!pantryId || isProcessing} className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2">
+                            {isProcessing ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>}
+                            <span>Zapisz</span>
+                        </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -726,7 +762,7 @@ export default function LastoWeb() {
         </div>
       )}
 
-      {/* MODAL INFORMACYJNY / SUCCESS */}
+      {/* MODAL INFORMACYJNY */}
       {infoModal.isOpen && (
         <div className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center" onClick={(e) => e.stopPropagation()}>
