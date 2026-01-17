@@ -564,7 +564,7 @@ const checkStatus = async (id: string, fileName: string) => {
     <main className="flex h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
       
       {/* SIDEBAR */}
-      <div className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-80 -translate-x-full'}`}>
+      <div className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-full md:w-80 md:translate-x-0 translate-x-0' : 'w-80 -translate-x-full'}`}>
         <div className="flex flex-col h-full overflow-hidden">
           <div className="p-8 pb-4 flex justify-between items-center whitespace-nowrap">
             <h2 onClick={() => setIsSidebarOpen(false)} className="text-2xl font-light tracking-tight cursor-pointer">Archiwum</h2>
