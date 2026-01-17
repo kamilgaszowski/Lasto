@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import './lasto.css';
 
 // --- MODELE DANYCH ---
 interface Utterance {
@@ -563,13 +564,23 @@ const checkStatus = async (id: string, fileName: string) => {
   return (
     <main className="flex h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
       
-      {/* SIDEBAR */}
-      <div className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-full md:w-80 md:translate-x-0 translate-x-0' : 'w-80 -translate-x-full'}`}>
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="p-8 pb-4 flex justify-between items-center whitespace-nowrap">
-            <h2 onClick={() => setIsSidebarOpen(false)} className="text-2xl font-light tracking-tight cursor-pointer">Archiwum</h2>
-            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors"><RuneArrowLeft /></button>
-          </div>
+    {/* SIDEBAR */}
+<div className={`lasto-sidebar ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+  <div className="sidebar-content">
+    <div className="sidebar-header">
+      <h2 
+        onClick={() => setIsSidebarOpen(false)} 
+        className="text-2xl font-light tracking-tight cursor-pointer"
+      >
+        Archiwum
+      </h2>
+      <button 
+        onClick={() => setIsSidebarOpen(false)} 
+        className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
+      >
+        <RuneArrowLeft />
+      </button>
+    </div>
 
           <div className="px-6 pb-6 flex space-x-2 relative">
               <button 
@@ -618,8 +629,8 @@ const checkStatus = async (id: string, fileName: string) => {
       </div>
 
       {/* GŁÓWNY PANEL */}
-      <div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 ${isSidebarOpen ? 'ml-80' : 'ml-0'}`}>
-        
+<div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 
+    ${isSidebarOpen ? 'md:ml-80 ml-0' : 'ml-0'}`}>        
         <div className="p-8 flex justify-between items-start z-10">
           <div className="flex items-center space-x-6">
              {!isSidebarOpen && (
