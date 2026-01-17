@@ -83,3 +83,21 @@
 .btn-clear-archive {
   @apply w-full py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center space-x-2;
 }
+/* --- IKONY (Parametry wizualne) --- */
+.icon-base svg {
+  @apply transition-colors;
+}
+
+/* Rozmiary */
+.icon-xs svg { @apply w-3 h-3; }
+.icon-sm svg { @apply w-4 h-4; }
+.icon-md svg { @apply w-5 h-5; }
+.icon-lg svg { @apply w-6 h-6; }
+.icon-xl svg { @apply w-10 h-10; }
+
+/* Specyficzne grubości linii i style */
+.icon-thin svg { stroke-width: 1.1; }
+.icon-normal svg { stroke-width: 1.5; }
+.icon-bold svg { stroke-width: 2.5; }
+
+.icon-square svg { stroke-linecap: square; }
