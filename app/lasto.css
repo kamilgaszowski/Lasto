@@ -316,7 +316,7 @@
 }
 
 .theme-btn-active {
-  @apply bg-white shadow-sm text-black dark:bg-gray-700 dark:text-white !important;
+  @apply !bg-white !shadow-sm !text-black dark:!bg-gray-700 dark:!text-white;
 }
 
 .input-group {
