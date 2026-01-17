@@ -140,7 +140,11 @@
 .format-hint {
   @apply text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-600 mt-4;
 }
-
+.top-bar {
+ 
+  @apply flex justify-between items-start z-10 w-full; 
+  @apply p-4 md:p-8;
+}
 /* --- EDITOR SECTION --- */
 
 .title-view-mode { 
