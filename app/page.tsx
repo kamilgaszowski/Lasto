@@ -612,12 +612,30 @@ const checkStatus = async (id: string, fileName: string) => {
 
           <div className="flex-1 flex flex-col overflow-y-auto px-4 space-y-1">
             {history.map((item) => (
-              <button key={item.id} onClick={() => { setSelectedItem(item); }} className={`w-full text-left p-4 rounded-xl transition-all relative group ${selectedItem?.id === item.id ? 'bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}>
-                <div onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} className="absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all z-10"><CloseIcon /></div>
-                <div className="font-medium truncate text-sm pr-6">{item.title}</div>
-                <div className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">{new Date(item.date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-              </button>
-            ))}
+  <button 
+    key={item.id} 
+    onClick={() => { 
+      setSelectedItem(item);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+    }} 
+    className={`archive-item ${selectedItem?.id === item.id ? 'archive-item-active' : ''}`}
+  >
+    {/* PRZYCISK USUWANIA - Teraz super krótki */}
+    <div 
+      onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} 
+      className="archive-delete-btn"
+    >
+      <CloseIcon />
+    </div>
+
+    <div className="archive-item-title">{item.title}</div>
+    <div className="archive-item-date">
+      {new Date(item.date).toLocaleString('pl-PL', { 
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+      })}
+    </div>
+  </button>
+))}
           </div>
 
           {history.length > 0 && (

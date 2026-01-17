@@ -1,6 +1,30 @@
 
 @import "tailwindcss";
 
+
+
+
+/* Bazowy styl elementu na liście */
+.archive-item {
+  @apply w-full text-left p-4 rounded-xl transition-all relative group;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-800/50;
+}
+
+/* Stan aktywny (wybrane nagranie) */
+.archive-item-active {
+  @apply bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10;
+}
+
+/* Napis tytułowy wewnątrz elementu */
+.archive-item-title {
+  @apply font-medium truncate text-sm pr-6;
+}
+
+/* Data pod tytułem */
+.archive-item-date {
+  @apply text-[10px] uppercase tracking-widest text-gray-400 mt-1;
+}
+
 /* Kontener boczny (Archiwum) */
 .lasto-sidebar {
   @apply fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300;
@@ -23,4 +47,29 @@
 
 .sidebar-header {
   @apply p-8 pb-4 flex justify-between items-center whitespace-nowrap;
+}
+
+/* Ukrywanie elementu tylko na mobile */
+.hide-on-mobile {
+  @apply hidden md:block;
+}
+
+/* Przyciski w archiwum */
+.archive-item {
+  @apply w-full text-left p-4 rounded-xl transition-all relative group;
+}
+
+/* Przycisk usuwania wewnątrz elementu archiwum */
+.archive-delete-btn {
+  @apply absolute top-2 right-2 p-2 z-10 transition-all;
+  @apply text-gray-400 hover:text-red-500;
+  /* Domyślnie ukryty, pokazywany gdy rodzic (.archive-item) ma hover */
+  @apply opacity-0 group-hover:opacity-100;
+}
+
+/* Na urządzeniach dotykowych lepiej, żeby był lekko widoczny cały czas */
+@media (hover: none) {
+  .archive-delete-btn {
+    @apply opacity-40;
+  }
 }
