@@ -329,7 +329,7 @@ export default function LastoWeb() {
   };
 
   // --- UPLOAD (ASSEMBLY AI) ---
- const checkStatus = async (id: string, fileName: string) => {
+const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { 
@@ -341,8 +341,7 @@ export default function LastoWeb() {
         if (result.status === 'completed') {
           clearInterval(interval);
           
-          // POPRAWKA: Tworzymy unikalne ID łącząc ID z AssemblyAI i aktualnym czasem
-          // Zapobiegnie to duplikatom, które "sklejają" się w UI
+          // Tworzymy unikalne ID
           const uniqueId = `${id}-${Date.now()}`;
 
           const newItem: HistoryItem = {
@@ -355,11 +354,22 @@ export default function LastoWeb() {
           };
           
           await dbSave(newItem);
+
+          // POPRAWKA: Strażnik przed duplikatami w stanie Reacta
           setHistory(prev => {
+             // Sprawdzamy, czy nagranie o tym ID już istnieje w aktualnej liście (prev)
+             // result.id to oryginalne ID z AssemblyAI, newItem.id to nasze unikalne
+             // Ale dla pewności sprawdzamy oba warianty
+             const exists = prev.some(item => item.id === uniqueId || item.id.startsWith(id));
+             
+             if (exists) return prev; // Jeśli już jest, nic nie zmieniaj
+
              const updated = [newItem, ...prev];
+             // Backup w chmurze robimy tylko raz dla nowego elementu
              setTimeout(() => saveToCloudWithData(updated), 500);
              return updated;
           });
+
           setSelectedItem(newItem);
           setIsProcessing(false);
           setStatus('');
@@ -374,6 +384,7 @@ export default function LastoWeb() {
       }
     }, 3000);
   };
+
   const processFile = async (file: File) => {
     if (!apiKey) return;
     setIsProcessing(true);
