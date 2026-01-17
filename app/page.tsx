@@ -713,77 +713,118 @@ const checkStatus = async (id: string, fileName: string) => {
 { /*- SEKCJA GŁÓWNY PANEL END ---*/}
 
       {/* MODAL USTAWIEŃ */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setIsSettingsOpen(false)}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden relative max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setIsSettingsOpen(false)} className="absolute top-6 right-8 text-gray-400 hover:text-black dark:hover:text-white transition-colors z-10"><CloseIcon /></button>
-            <div className="w-full md:w-1/2 bg-gray-50/50 dark:bg-gray-800/30 p-12 border-r border-gray-100 dark:border-gray-800 overflow-y-auto">
-                <h3 className="text-3xl font-light tracking-tight mb-10 dark:text-white">Przewodnik konfiguracji</h3>
-                <div className="space-y-12">
-                    <div className="space-y-4">
-                        <div className="flex items-center space-x-4 text-indigo-600 dark:text-indigo-400">
-                            <span className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-current text-sm font-bold">1</span>
-                            <h4 className="font-bold uppercase tracking-widest text-xs">Transkrypcja (AssemblyAI)</h4>
-                        </div>
-                        <div className="pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-                            <p>Klucz API pozwala SI zamienić Twoje nagrania na tekst.</p>
-                            <ul className="list-disc space-y-3 pl-4 font-medium">
-                                <li>Zarejestruj się na <a href="https://www.assemblyai.com/" target="_blank" className="underline text-indigo-600">assemblyai.com</a></li>
-                                <li>Wejdź do <span className="text-black dark:text-white">Dashboard</span> i skopiuj <span className="text-black dark:text-white">Your API Key</span></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="flex items-center space-x-4 text-indigo-600 dark:text-indigo-400">
-                            <span className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-current text-sm font-bold">2</span>
-                            <h4 className="font-bold uppercase tracking-widest text-xs">Synchronizacja (Pantry)</h4>
-                        </div>
-                        <div className="pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-                            <p>Pantry ID chroni historię przed wyczyszczeniem danych przeglądarki.</p>
-                            <ul className="list-disc space-y-3 pl-4 font-medium">
-                                <li>Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="underline text-indigo-600">getpantry.cloud</a></li>
-                                <li>ID znajdziesz w Dashboardzie po stworzeniu nowej Spiżarni.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+{isSettingsOpen && (
+  <div className="settings-overlay" onClick={() => setIsSettingsOpen(false)}>
+    <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+      
+      {/* Przycisk Zamknij */}
+      <button onClick={() => setIsSettingsOpen(false)} className="settings-close-btn">
+        <CloseIcon />
+      </button>
+
+      {/* LEWA KOLUMNA: PRZEWODNIK */}
+      <div className="guide-panel">
+        <h3 className="guide-heading">Przewodnik konfiguracji</h3>
+        <div className="space-y-12">
+          
+          {/* Krok 1 */}
+          <div className="step-container">
+            <div className="step-header">
+              <span className="step-number">1</span>
+              <h4 className="step-title">Transkrypcja (AssemblyAI)</h4>
             </div>
-            <div className="w-full md:w-1/2 p-12 overflow-y-auto space-y-12">
-                <h3 className="text-3xl font-thin text-center dark:text-white">Ustawienia</h3>
-                <div className="space-y-12">
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1">Wygląd</label>
-                        <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl">
-                            <button onClick={() => setTheme('light')} className={`flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl text-xs font-medium transition-all ${theme === 'light' ? 'bg-white shadow-sm text-black' : 'text-gray-400'}`}><SunIcon /><span>Jasny</span></button>
-                            <button onClick={() => setTheme('dark')} className={`flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl text-xs font-medium transition-all ${theme === 'dark' ? 'bg-gray-700 shadow-sm text-white' : 'text-gray-400'}`}><MoonIcon /><span>Ciemny</span></button>
-                        </div>
-                    </div>
-                    <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}>
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-[11px] font-semibold text-gray-500 uppercase ml-1">AssemblyAI Key</label>
-                                <input type="password" name="assembly-key" autoComplete="current-password" className="w-full bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black transition-all" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[11px] font-semibold text-gray-500 uppercase ml-1">Pantry ID</label>
-                                <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
-                                <input type="password" name="password" autoComplete="current-password" className="w-full bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl p-4 text-sm focus:ring-1 focus:ring-black transition-all" value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} />
-                            </div>
-                        </div>
-                    </form>
-                    <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1">Backup kluczy</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button onClick={exportKeys} className="px-4 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black transition-all text-[10px] font-bold uppercase tracking-wider">Zapisz do pliku</button>
-                            <label className="px-4 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-black transition-all text-[10px] font-bold uppercase tracking-wider cursor-pointer text-center">Wczytaj plik<input type="file" className="hidden" accept=".json" onChange={importKeys} /></label>
-                        </div>
-                    </div>
-                    <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-[1.5rem] font-bold text-sm shadow-xl active:scale-[0.98]">Gotowe</button>
-                </div>
+            <div className="step-content">
+              <p>Klucz API pozwala SI zamienić Twoje nagrania na tekst.</p>
+              <ul className="list-disc space-y-3 pl-4 font-medium">
+                <li>Zarejestruj się na <a href="https://www.assemblyai.com/" target="_blank" className="step-link">assemblyai.com</a></li>
+                <li>Wejdź do <span className="highlight-text">Dashboard</span> i skopiuj <span className="highlight-text">Your API Key</span></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Krok 2 */}
+          <div className="step-container">
+            <div className="step-header">
+              <span className="step-number">2</span>
+              <h4 className="step-title">Synchronizacja (Pantry)</h4>
+            </div>
+            <div className="step-content">
+              <p>Pantry ID chroni historię przed wyczyszczeniem danych przeglądarki.</p>
+              <ul className="list-disc space-y-3 pl-4 font-medium">
+                <li>Wejdź na <a href="https://getpantry.cloud/" target="_blank" className="step-link">getpantry.cloud</a></li>
+                <li>ID znajdziesz w Dashboardzie po stworzeniu nowej Spiżarni.</li>
+              </ul>
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* PRAWA KOLUMNA: FORMULARZ */}
+      <div className="form-panel">
+        <h3 className="settings-heading">Ustawienia</h3>
+        <div className="space-y-12">
+          
+          {/* Wygląd */}
+          <div>
+            <label className="settings-label">Wygląd</label>
+            <div className="theme-switcher">
+              <button onClick={() => setTheme('light')} className={`theme-btn ${theme === 'light' ? 'theme-btn-active' : ''}`}>
+                <SunIcon /><span>Jasny</span>
+              </button>
+              <button onClick={() => setTheme('dark')} className={`theme-btn ${theme === 'dark' ? 'theme-btn-active' : ''}`}>
+                <MoonIcon /><span>Ciemny</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Formularz Kluczy */}
+          <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); setIsSettingsOpen(false); }}>
+            <div className="space-y-6">
+              <div className="input-group">
+                <label className="input-label">AssemblyAI Key</label>
+                <input 
+                  type="password" 
+                  name="assembly-key" 
+                  autoComplete="current-password" 
+                  className="settings-input" 
+                  value={apiKey} 
+                  onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} 
+                />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Pantry ID</label>
+                {/* Ukryte pole dla managera haseł */}
+                <input type="text" name="username" value="LastoUser" autoComplete="username" className="hidden" readOnly />
+                <input 
+                  type="password" 
+                  name="password" 
+                  autoComplete="current-password" 
+                  className="settings-input" 
+                  value={pantryId} 
+                  onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} 
+                />
+              </div>
+            </div>
+          </form>
+
+          {/* Backup */}
+          <div className="backup-section">
+            <label className="settings-label">Backup kluczy</label>
+            <div className="backup-grid">
+              <button onClick={exportKeys} className="btn-backup">Zapisz do pliku</button>
+              <label className="btn-backup">
+                Wczytaj plik
+                <input type="file" className="hidden" accept=".json" onChange={importKeys} />
+              </label>
+            </div>
+          </div>
+
+          <button onClick={() => setIsSettingsOpen(false)} className="btn-submit">Gotowe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* MODAL USUWANIA JEDNEGO */}
       {isDeleteModalOpen && (

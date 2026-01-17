@@ -231,3 +231,122 @@
 }
 
 /* --- POMOCNICZE END --- */
+/* --- MODAL USTAWIEŃ START --- */
+
+.settings-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-6;
+  @apply bg-white/60 dark:bg-black/80 backdrop-blur-xl;
+  animation: lasto-fade-in 0.3s ease-out;
+}
+
+.settings-modal {
+  @apply w-full max-w-5xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden relative;
+  @apply bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-2xl;
+  /* Animacja wejścia modala (lekkie powiększenie) */
+  animation: lasto-scale-in 0.3s ease-out;
+}
+
+@keyframes lasto-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.settings-close-btn {
+  @apply absolute top-6 right-8 z-10 text-gray-400 hover:text-black dark:hover:text-white transition-colors;
+}
+
+/* LEWY PANEL (Przewodnik) */
+.guide-panel {
+  @apply w-full md:w-1/2 p-12 overflow-y-auto border-r border-gray-100 dark:border-gray-800;
+  @apply bg-gray-50/50 dark:bg-gray-800/30;
+}
+
+.guide-heading {
+  @apply text-3xl font-light tracking-tight mb-10 dark:text-white;
+}
+
+.step-container {
+  @apply space-y-4;
+}
+
+.step-header {
+  @apply flex items-center space-x-4 text-indigo-600 dark:text-indigo-400;
+}
+
+.step-number {
+  @apply flex items-center justify-center w-8 h-8 rounded-full border-2 border-current text-sm font-bold;
+}
+
+.step-title {
+  @apply font-bold uppercase tracking-widest text-xs;
+}
+
+.step-content {
+  @apply pl-12 space-y-4 text-base text-gray-600 dark:text-gray-400 leading-relaxed;
+}
+
+.step-link {
+  @apply underline text-indigo-600 hover:text-indigo-800;
+}
+
+.highlight-text {
+  @apply text-black dark:text-white font-medium;
+}
+
+/* PRAWY PANEL (Formularz) */
+.form-panel {
+  @apply w-full md:w-1/2 p-12 overflow-y-auto space-y-12;
+}
+
+.settings-heading {
+  @apply text-3xl font-thin text-center dark:text-white;
+}
+
+.settings-label {
+  @apply text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] px-1 block mb-2;
+}
+
+.theme-switcher {
+  @apply flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl;
+}
+
+.theme-btn {
+  @apply flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl text-xs font-medium transition-all;
+  @apply text-gray-400 hover:text-gray-600 dark:hover:text-gray-200;
+}
+
+.theme-btn-active {
+  @apply bg-white shadow-sm text-black dark:bg-gray-700 dark:text-white !important;
+}
+
+.input-group {
+  @apply space-y-2;
+}
+
+.input-label {
+  @apply text-[11px] font-semibold text-gray-500 uppercase ml-1;
+}
+
+.settings-input {
+  @apply w-full bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl p-4 text-sm;
+  @apply focus:ring-1 focus:ring-black transition-all outline-none;
+}
+
+.backup-section {
+  @apply space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800;
+}
+
+.backup-grid {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.btn-backup {
+  @apply px-4 py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300;
+  @apply hover:text-black dark:hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider text-center cursor-pointer;
+}
+
+.btn-submit {
+  @apply w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-[1.5rem] font-bold text-sm shadow-xl active:scale-[0.98] transition-transform;
+}
+
+/* --- MODAL USTAWIEŃ END --- */
