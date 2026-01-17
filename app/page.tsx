@@ -72,7 +72,7 @@ const dbDelete = async (id: string) => {
   });
 };
 
-// --- KOMPRESJA DANYCH (DLA PANTRY) ---
+// --- KOMPRESJA DANYCH ---
 const compressHistory = (history: HistoryItem[]) => {
     return history.map(item => ({
         id: item.id, ti: item.title, da: item.date, sn: item.speakerNames,
@@ -91,7 +91,7 @@ const decompressHistory = (compressed: any[]): HistoryItem[] => {
     });
 };
 
-// --- IKONY (SVG KOMPONENTY) ---
+// --- IKONY (SVG) ---
 const IconDownload = () => <svg className="icon-small icon-stroke-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>;
 const IconUpload = () => <svg className="icon-small icon-stroke-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>;
 const RuneArrowLeft = () => <svg className="icon-medium" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 4l-10 8 10 8" /></svg>;
@@ -103,28 +103,26 @@ const SettingsIcon = () => <svg className="icon-large" fill="none" stroke="curre
 const EditIcon = () => <svg className="icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>;
 
 export default function LastoWeb() {
-  // --- STANY DANYCH ---
+  // --- STANY ---
   const [apiKey, setApiKey] = useState('');
   const [pantryId, setPantryId] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
-
-  // --- STANY UI ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
 
-  // --- STANY EDYCJI ---
+  // --- STANY MODALI ---
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
 
-  // --- FEEDBACK BUTTONS ---
+  // --- FEEDBACK ---
   const [copyState, setCopyState] = useState(false);
   const [saveState, setSaveState] = useState(false);
   const [pobierzState, setPobierzState] = useState(false);
@@ -138,42 +136,37 @@ export default function LastoWeb() {
         try {
             const items = await dbGetAll();
             setHistory(items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        } catch (e) { console.error("IndexedDB load error", e); }
+        } catch (e) { console.error(e); }
     };
     initData();
     const savedTheme = localStorage.getItem('lastoTheme') as 'light' | 'dark' | null;
     if (savedTheme) setTheme(savedTheme);
   }, []);
 
-
+  // --- OBSŁUGA MOTYWU ---
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
 
-  // --- OBSŁUGA KLAWIATURY (Esc / Enter) ---
+  // --- SKRÓTY KLAWIATUROWE ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsSettingsOpen(false);
         setIsSidebarOpen(false);
         setIsDeleteModalOpen(false);
-        setIsDeleteAllModalOpen(false); // Dodamy ten stan zaraz
+        setIsDeleteAllModalOpen(false);
       }
-      if (e.key === 'Enter' && isSettingsOpen) {
-        setIsSettingsOpen(false);
-      }
+      if (e.key === 'Enter' && isSettingsOpen) setIsSettingsOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSettingsOpen, isDeleteModalOpen]);
+  }, [isSettingsOpen, isDeleteModalOpen, isDeleteAllModalOpen]);
 
-  // --- LOGIKA BIZNESOWA ---
+  // --- FUNKCJE LOGICZNE ---
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
     return item.speakerNames?.[speakerKey] || (speakerKey === "A" ? "Rozmówca A" : "Rozmówca B");
   };
@@ -210,19 +203,15 @@ export default function LastoWeb() {
     setItemToDelete(null);
   };
 
-  // --- PANTRY CLOUD ---
   const saveToCloudWithData = async (dataToSave: HistoryItem[]) => {
     if (!pantryId) return;
     try {
         const compressed = compressHistory(dataToSave);
         await fetch(`https://getpantry.cloud/apiv1/pantry/${pantryId.trim()}/basket/lastoHistory`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                chunk_0: compressed.slice(0, 50), 
-                manifest: { totalChunks: Math.ceil(compressed.length / 50), timestamp: Date.now() } 
-            })
+            body: JSON.stringify({ chunk_0: compressed.slice(0, 50), manifest: { totalChunks: Math.ceil(compressed.length / 50), timestamp: Date.now() } })
         });
-    } catch (e) { console.error("Cloud Save Error", e); }
+    } catch (e) { console.error(e); }
   };
 
   const saveToCloud = async () => {
@@ -240,7 +229,6 @@ export default function LastoWeb() {
     setIsProcessing(true);
     try {
         const res = await fetch(`https://getpantry.cloud/apiv1/pantry/${pantryId.trim()}/basket/lastoHistory`);
-        if (!res.ok) throw new Error("Cloud empty");
         const data = await res.json();
         let remoteCompressed: any[] = [];
         if (data.manifest) {
@@ -257,16 +245,13 @@ export default function LastoWeb() {
                 return [...newItems, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             });
         }
-    } catch (e) { console.error("Cloud load error", e); } finally { setIsProcessing(false); }
+    } finally { setIsProcessing(false); }
   };
 
-  // --- TRANSKRYPCJA (ASSEMBLY AI) ---
   const checkStatus = async (id: string, fileName: string) => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { 
-          headers: { 'Authorization': apiKey } 
-        });
+        const res = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, { headers: { 'Authorization': apiKey } });
         if (!res.ok) return;
         const result = await res.json();
         if (result.status === 'completed') {
@@ -294,9 +279,7 @@ export default function LastoWeb() {
     if (!apiKey) return;
     setIsProcessing(true); setStatus('Wysyłanie...');
     try {
-      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', { 
-        method: 'POST', headers: { 'Authorization': apiKey }, body: file 
-      });
+      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', { method: 'POST', headers: { 'Authorization': apiKey }, body: file });
       const { upload_url } = await uploadRes.json();
       setStatus('Przetwarzanie AI...');
       const transcriptRes = await fetch('https://api.assemblyai.com/v2/transcript', {
@@ -349,17 +332,14 @@ export default function LastoWeb() {
 
           <div className="archive-list">
             {history.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => { setSelectedItem(item); if (window.innerWidth < 768) setIsSidebarOpen(false); }} 
-                className={`archive-item ${selectedItem?.id === item.id ? 'archive-item-active' : ''}`}
-              >
+              <button key={item.id} onClick={() => { setSelectedItem(item); if (window.innerWidth < 768) setIsSidebarOpen(false); }} className={`archive-item group ${selectedItem?.id === item.id ? 'archive-item-active' : ''}`}>
                 <div onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} className="archive-delete-btn"><CloseIcon /></div>
                 <div className="archive-item-title">{item.title}</div>
                 <div className="archive-item-date">{new Date(item.date).toLocaleDateString()}</div>
               </button>
             ))}
           </div>
+
           {history.length > 0 && (
             <div className="sidebar-footer">
                 <button onClick={() => setIsDeleteAllModalOpen(true)} className="btn-clear-archive">
@@ -447,7 +427,7 @@ export default function LastoWeb() {
         </div>
       </div>
 
-    {/* MODAL USUWANIA POJEDYNCZEGO */}
+      {/* MODAL USUWANIA POJEDYNCZEGO */}
       {isDeleteModalOpen && (
         <div className="modal-overlay" onClick={() => setIsDeleteModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -465,17 +445,15 @@ export default function LastoWeb() {
         <div className="modal-overlay" onClick={() => setIsDeleteAllModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-medium mb-2 dark:text-white">Wyczyścić archiwum?</h3>
-            <p className="text-xs text-gray-500 mb-6">Tej operacji nie można cofnąć.</p>
+            <p className="text-[10px] text-gray-500 mb-6 uppercase tracking-widest">Tej operacji nie można cofnąć</p>
             <div className="flex space-x-3">
               <button onClick={() => setIsDeleteAllModalOpen(false)} className="btn-action-base btn-wyslij py-3">Anuluj</button>
               <button onClick={async () => {
                 const db = await openDB();
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).clear();
-                setHistory([]);
-                setSelectedItem(null);
-                setIsDeleteAllModalOpen(false);
-              }} className="btn-action-base bg-red-600 text-white py-3">Wyczyść wszystko</button>
+                setHistory([]); setSelectedItem(null); setIsDeleteAllModalOpen(false);
+              }} className="btn-action-base bg-red-600 text-white py-3">Wyczyść</button>
             </div>
           </div>
         </div>
@@ -489,7 +467,6 @@ export default function LastoWeb() {
             <h3 className="text-3xl font-thin text-center mb-8 dark:text-white">Ustawienia</h3>
             
             <div className="space-y-6 text-left">
-                {/* Wybór Motywu */}
                 <div className="space-y-2">
                   <label className="speaker-label">Motyw wizualny</label>
                   <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
@@ -500,15 +477,15 @@ export default function LastoWeb() {
 
                 <div className="space-y-2">
                   <label className="speaker-label">AssemblyAI API Key</label>
-                  <input type="password" className="speaker-input" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} placeholder="Wklej klucz..." />
+                  <input type="password" className="speaker-input" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="speaker-label">Pantry ID (Cloud Sync)</label>
-                  <input type="password" className="speaker-input" value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} placeholder="Wklej ID koszyka..." />
+                  <label className="speaker-label">Pantry ID</label>
+                  <input type="password" className="speaker-input" value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} />
                 </div>
 
-                <button onClick={() => setIsSettingsOpen(false)} className="btn-action-base btn-status-success py-4 w-full text-sm mt-4">Gotowe (Enter)</button>
+                <button onClick={() => setIsSettingsOpen(false)} className="btn-action-base btn-status-success py-4 w-full text-xs font-bold mt-4">Gotowe (Enter)</button>
             </div>
           </div>
         </div>
