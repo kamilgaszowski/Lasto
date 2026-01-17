@@ -14,7 +14,7 @@
 }
 
 /* Kiedy HTML ma klasę .dark, zmień tło panelu */
-:global(.dark) .lasto-main-panel {
+.dark .lasto-main-panel {
   background-color: #030712; /* gray-950 */
 }
 
@@ -79,7 +79,7 @@
   @apply text-6xl md:text-9xl font-thin tracking-tighter transition-colors;
   color: #111827;
 }
-:global(.dark) .hero-title { color: white; }
+.dark .hero-title { color: white; }
 
 .hero-subtitle { @apply flex items-center justify-center space-x-6 text-xl font-light text-gray-400; }
 .rune-divider { @apply text-2xl text-gray-200 dark:text-gray-700 pb-1; }
@@ -105,7 +105,7 @@
   @apply text-4xl font-thin tracking-tight truncate max-w-2xl;
   color: black;
 }
-:global(.dark) .title-text { color: white; }
+.dark .title-text { color: white; }
 
 .title-clickable { @apply flex items-center w-full cursor-pointer; }
 .edit-indicator { @apply ml-4 opacity-30 text-gray-400 transition-all duration-300; }
@@ -159,7 +159,7 @@
   animation: lasto-scale-in 0.2s ease-out;
   background-color: white;
 }
-:global(.dark) .modal-box {
+.dark .modal-box {
   background-color: #111827; 
   border-color: #1f2937;
 }
@@ -170,7 +170,7 @@
   animation: lasto-scale-in 0.3s ease-out;
   background-color: white;
 }
-:global(.dark) .settings-modal { background-color: #111827; }
+.dark .settings-modal { background-color: #111827; }
 
 .settings-close-btn { @apply absolute top-6 right-8 z-10 text-gray-400 hover:text-black dark:hover:text-white transition-colors; }
 
