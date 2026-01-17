@@ -352,7 +352,8 @@
 /* --- MODAL USTAWIEŃ END --- */
 /* --- MODALE (Delete / Info) START --- */
 
-/* Tła (Overlaye) */
+/* Tła (Overlaye) - Definiujemy każdą klasę osobno, bez @apply modal-backdrop */
+
 .modal-backdrop {
   @apply fixed inset-0 z-50 flex items-center justify-center p-6 outline-none;
   @apply bg-black/40 backdrop-blur-md;
@@ -360,11 +361,17 @@
 }
 
 .modal-backdrop-high {
-  @apply modal-backdrop z-[60]; /* Wyższy index dla usuwania wszystkiego */
+  /* To samo co wyżej + wyższy Z-index */
+  @apply fixed inset-0 z-[60] flex items-center justify-center p-6 outline-none;
+  @apply bg-black/40 backdrop-blur-md;
+  animation: lasto-fade-in 0.2s ease-out;
 }
 
 .modal-backdrop-light {
-  @apply modal-backdrop bg-white/60 dark:bg-black/80 backdrop-blur-xl;
+  /* To samo ułożenie, ale inne tło */
+  @apply fixed inset-0 z-50 flex items-center justify-center p-6 outline-none;
+  @apply bg-white/60 dark:bg-black/80 backdrop-blur-xl;
+  animation: lasto-fade-in 0.2s ease-out;
 }
 
 /* Kontener Modala (Wspólny wygląd) */
