@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import './lasto.css';
+
 import { 
   RuneArrowLeft, RuneArrowRight, SettingsIcon, EditIcon, 
-  CheckIcon, CloseIcon, TrashIcon, SunIcon, MoonIcon, InfoIcon 
+  CheckIcon, CloseIcon, TrashIcon, SunIcon, MoonIcon, InfoIcon,
+  IconUpload, IconCopy 
 } from './components/Icons';
 
 // --- MODELE DANYCH ---
@@ -576,124 +578,139 @@ const checkStatus = async (id: string, fileName: string) => {
   </div>
 </div>
 
-      {/* GŁÓWNY PANEL */}
-<div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 
-    ${isSidebarOpen ? 'md:ml-80 ml-0' : 'ml-0'}`}>        
-        <div className="p-8 flex justify-between items-start z-10">
-          <div className="flex items-center space-x-6">
-             {!isSidebarOpen && (
-               <button onClick={() => setIsSidebarOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white transition-colors cursor-pointer"><RuneArrowRight /></button>
-             )}
-             {selectedItem && (
-               <button onClick={() => setSelectedItem(null)} className={`relative z-40 text-3xl font-thin tracking-tighter transition-all duration-300 text-gray-400 hover:text-black dark:hover:text-white`}>Lasto</button>
-             )}
+// --- SEKCJA GŁÓWNY PANEL START ---
+<div className={`lasto-main-panel ${isSidebarOpen ? 'panel-shifted' : ''}`}>
+  
+  {/* PASEK GÓRNY */}
+  <div className="top-bar">
+    <div className="top-bar-left">
+      {!isSidebarOpen && (
+        <button onClick={() => setIsSidebarOpen(true)} className="icon-button">
+          <RuneArrowRight />
+        </button>
+      )}
+      {selectedItem && (
+        <button onClick={() => setSelectedItem(null)} className="btn-logo">
+          Lasto
+        </button>
+      )}
+    </div>
+    <button onClick={() => setIsSettingsOpen(true)} className="settings-trigger">
+      <SettingsIcon />
+    </button>
+  </div>
+
+  {/* OBSZAR ROBOCZY */}
+  <div className="workspace-area">
+    {!selectedItem ? (
+      /* EKRAN POWITALNY (HERO) */
+      <div className="hero-container">
+        <div className="hero-content">
+          <div className="hero-title">Lasto</div>
+          <div className="hero-subtitle">
+            <span>Słuchaj</span> <span className="rune-divider">ᛟ</span>
+            <span>Nagraj</span> <span className="rune-divider">ᛟ</span>
+            <span>Pisz</span>
           </div>
-          <button onClick={() => setIsSettingsOpen(true)} className="text-gray-300 hover:text-black dark:hover:text-white transition-transform hover:rotate-12 duration-300"><SettingsIcon /></button>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-12 pb-12 overflow-hidden">
-          {!selectedItem ? (
-            <div className="text-center space-y-12 animate-in fade-in zoom-in duration-700">
-              <div className="space-y-6">
-                <div className="text-9xl font-thin tracking-tighter text-gray-900 dark:text-white transition-colors">Lasto</div>
-                <div className="flex items-center justify-center space-x-6 text-xl font-light text-gray-400">
-                    <span>Słuchaj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                    <span>Nagraj</span> <span className="text-2xl text-gray-200 dark:text-gray-700 pb-1">ᛟ</span>
-                    <span>Pisz</span>
-                </div>
-              </div>
-              <div className="flex flex-col space-y-4 items-center pt-8 min-h-[100px]">
-                {isProcessing ? (
-                  <div className="flex flex-col items-center space-y-3 animate-in fade-in zoom-in duration-300">
-                     <div className="w-6 h-6 border-2 border-gray-300 border-t-black dark:border-gray-700 dark:border-t-white rounded-full animate-spin"/>
-                     <span className="text-xs uppercase tracking-[0.2em] text-gray-400 animate-pulse">{uploadStatus || status || 'Przetwarzanie...'}</span>
-                  </div>
-                ) : !apiKey ? (
-                  <div className="flex flex-col items-center space-y-4">
-                    <button onClick={() => setIsSettingsOpen(true)} className="bg-black dark:bg-white dark:text-black text-white px-10 py-5 rounded-full transition-all hover:scale-105 shadow-xl font-medium">Dodaj pierwsze nagranie</button>
-                  </div>
-                ) : (
-                  <>
-                    <label onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDrop={handleDrop} className={`group relative cursor-pointer px-12 py-5 rounded-full transition-all shadow-xl flex flex-col items-center justify-center border-2 ${isDragging ? 'bg-gray-800 text-white scale-110 border-white border-dashed' : 'bg-black dark:bg-white dark:text-black text-white border-transparent hover:scale-105 active:scale-95'}`}>{isDragging ? 'Upuść tutaj!' : 'Importuj nagranie'}<input type="file" className="hidden" accept="audio/*" onChange={handleFileInput} /></label>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-600 mt-4">WAV • MP3 • M4A</p>
-                  </>
-                )}
-              </div>
+        <div className="import-zone">
+          {isProcessing ? (
+            <div className="loader-container">
+              <div className="loader-spin" />
+              <span className="loader-text">
+                {uploadStatus || status || 'Przetwarzanie...'}
+              </span>
+            </div>
+          ) : !apiKey ? (
+            <button onClick={() => setIsSettingsOpen(true)} className="btn-primary">
+              Dodaj pierwsze nagranie
+            </button>
+          ) : (
+            <>
+              <label 
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }} 
+                onDragLeave={() => setIsDragging(false)} 
+                onDrop={handleDrop} 
+                className={`btn-import ${isDragging ? 'import-dragging' : ''}`}
+              >
+                {isDragging ? 'Upuść tutaj!' : 'Importuj nagranie'}
+                <input type="file" className="hidden" accept="audio/*" onChange={handleFileInput} />
+              </label>
+              <p className="format-hint">WAV • MP3 • M4A</p>
+            </>
+          )}
+        </div>
+      </div>
+    ) : (
+      /* EDYTOR TRANSKRYPCJI */
+      <div className="editor-container">
+        <div className="editor-header">
+          {isEditingTitle ? (
+            <div className="title-edit-mode">
+              <input 
+                className="title-input" 
+                value={editedTitle} 
+                onChange={(e) => setEditedTitle(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && saveNewTitle()} 
+                autoFocus 
+              />
+              <button onClick={saveNewTitle} className="btn-confirm"><CheckIcon /></button>
             </div>
           ) : (
-            <div className="w-full max-w-5xl h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-end justify-between border-b border-gray-50 dark:border-gray-800 pb-6 min-h-[80px]">
-                {isEditingTitle ? (
-                  <div className="flex items-center w-full space-x-4">
-                    <input className="w-full text-4xl font-thin tracking-tight bg-gray-50 dark:bg-gray-900 p-2 rounded focus:ring-1 focus:ring-black dark:focus:ring-white outline-none dark:text-white" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveNewTitle()} autoFocus />
-                    <button onClick={saveNewTitle} className="text-green-600 hover:text-green-800 p-2 rounded-full hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"><CheckIcon /></button>
-                  </div>
-                ) : (
-                  <div className="flex items-center w-full group relative">
-                    <button onClick={() => confirmDelete(selectedItem.id)} className="mr-4 text-gray-300 hover:text-red-500 transition-colors p-2" title="Usuń nagranie"><TrashIcon /></button>
-                    <div className="flex items-center w-full cursor-pointer" onClick={() => { setEditedTitle(selectedItem.title); setIsEditingTitle(true); }}>
-                        <h1 className="text-4xl font-thin tracking-tight truncate max-w-2xl dark:text-white">{selectedItem.title}</h1>
-                        <span className="ml-4 opacity-30 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300"><EditIcon /></span>
-                    </div>
-                    
-                    <div className="relative ml-auto">
-                        <button 
-                            onClick={saveToCloud} 
-                            disabled={!pantryId || isProcessing} 
-                            className={`px-5 py-3 rounded-xl text-[10px] uppercase tracking-widest font-bold flex items-center space-x-2 transition-all ${
-                                saveState 
-                                ? 'bg-black dark:bg-white text-white dark:text-black' 
-                                : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'
-                            }`}
-                        >
-                            {isProcessing ? (
-                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            ) : !saveState && (
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>
-                            )}
-                            <span>{saveState ? 'Zapisano' : 'Zapisz'}</span>
-                        </button>
-                    </div>
-                  </div>
-                )}
+            <div className="title-view-mode">
+              <button onClick={() => confirmDelete(selectedItem.id)} className="btn-delete-record">
+                <TrashIcon />
+              </button>
+              <div className="title-clickable" onClick={() => { setEditedTitle(selectedItem.title); setIsEditingTitle(true); }}>
+                <h1 className="title-text">{selectedItem.title}</h1>
+                <span className="edit-indicator"><EditIcon /></span>
               </div>
-              <div className="flex space-x-4 animate-in fade-in duration-300">
-                  <input className="flex-1 bg-gray-100 dark:bg-gray-900 dark:text-white border-none rounded-lg p-3 text-xs focus:ring-1 focus:ring-black dark:focus:ring-white" value={getSpeakerName(selectedItem, 'A')} onChange={(e) => handleSpeakerNameChange('A', e.target.value)} placeholder="Osoba A" />
-                  <input className="flex-1 bg-gray-100 dark:bg-gray-900 dark:text-white border-none rounded-lg p-3 text-xs focus:ring-1 focus:ring-black dark:focus:ring-white" value={getSpeakerName(selectedItem, 'B')} onChange={(e) => handleSpeakerNameChange('B', e.target.value)} placeholder="Osoba B" />
-              </div>
-              <textarea className="flex-1 w-full p-8 bg-gray-100/40 dark:bg-gray-900/40 dark:text-gray-200 rounded-2xl font-mono text-sm leading-relaxed border-none focus:ring-0 resize-none selection:bg-blue-50 dark:selection:bg-blue-900" value={getDisplayText(selectedItem)} readOnly />
-              <div className="flex items-center justify-end pt-2 relative">
-                <button 
-                    onClick={copyToClipboard} 
-                    className={`px-5 py-3 rounded-xl border transition-all text-[10px] uppercase tracking-widest font-medium flex items-center space-x-2 ${
-                        copyState 
-                        ? 'bg-black dark:bg-white text-white dark:text-black border-transparent' 
-                        : 'border-gray-200 dark:border-gray-800 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-50'
-                    }`}
-                >
-                    {!copyState && <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>}
-                    <span>{copyState ? 'Skopiowano' : 'Kopiuj tekst'}</span>
-                </button>
-              </div>
+              <button 
+                onClick={saveToCloud} 
+                disabled={!pantryId || isProcessing} 
+                className={`btn-save-cloud ${saveState ? 'btn-status-success' : ''}`}
+              >
+                {isProcessing ? <div className="loader-spin-xs" /> : !saveState && <IconUpload />}
+                <span>{saveState ? 'Zapisano' : 'Zapisz'}</span>
+              </button>
             </div>
           )}
         </div>
 
-        <div className="absolute bottom-6 right-8 flex items-center space-x-4 pointer-events-none select-none z-0">
-            <div className="flex items-center space-x-1.5 opacity-40">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-[9px] uppercase tracking-widest text-gray-400 font-medium">Auto-save on (DB)</span>
-            </div>
-            <div className="text-[10px] text-gray-200 dark:text-gray-800 uppercase tracking-widest flex items-center space-x-3">
-                <span className="italic font-serif">Lasto beth nîn</span>
-                <span className="text-xs opacity-50">ᛟ</span>
-                <span>developed by Kamil Gąszowski</span>
-                <span className="text-xs opacity-50">ᛟ</span>
-                <span>{new Date().getFullYear()}</span>
-            </div>
+        <div className="speaker-names-grid">
+          <input className="speaker-field" value={getSpeakerName(selectedItem, 'A')} onChange={(e) => handleSpeakerNameChange('A', e.target.value)} placeholder="Osoba A" />
+          <input className="speaker-field" value={getSpeakerName(selectedItem, 'B')} onChange={(e) => handleSpeakerNameChange('B', e.target.value)} placeholder="Osoba B" />
+        </div>
+
+        <textarea className="transcript-editor" value={getDisplayText(selectedItem)} readOnly />
+
+        <div className="editor-footer">
+          <button onClick={copyToClipboard} className={`btn-copy ${copyState ? 'btn-status-success' : ''}`}>
+            {!copyState && <IconCopy />}
+            <span>{copyState ? 'Skopiowano' : 'Kopiuj tekst'}</span>
+          </button>
         </div>
       </div>
+    )}
+  </div>
 
+  {/* STOPKA PODPISU */}
+  <div className="main-footer">
+    <div className="auto-save-indicator">
+      <div className="status-dot"></div>
+      <span>Auto-save on (DB)</span>
+    </div>
+    <div className="footer-signature">
+      <span className="italic">Lasto beth nîn</span>
+      <span className="rune-divider">ᛟ</span>
+      <span>developed by Kamil Gąszowski</span>
+      <span className="rune-divider">ᛟ</span>
+      <span>{new Date().getFullYear()}</span>
+    </div>
+  </div>
+</div>
+// --- SEKCJA GŁÓWNY PANEL END ---
       {/* MODAL USTAWIEŃ */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setIsSettingsOpen(false)}>
