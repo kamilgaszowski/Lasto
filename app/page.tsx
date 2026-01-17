@@ -116,6 +116,7 @@ export default function LastoWeb() {
   const [status, setStatus] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
 
   // --- STANY EDYCJI ---
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -144,11 +145,33 @@ export default function LastoWeb() {
     if (savedTheme) setTheme(savedTheme);
   }, []);
 
+
   useEffect(() => {
-    if (theme === 'dark') document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
     localStorage.setItem('lastoTheme', theme);
   }, [theme]);
+
+  // --- OBSŁUGA KLAWIATURY (Esc / Enter) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSettingsOpen(false);
+        setIsSidebarOpen(false);
+        setIsDeleteModalOpen(false);
+        setIsDeleteAllModalOpen(false); // Dodamy ten stan zaraz
+      }
+      if (e.key === 'Enter' && isSettingsOpen) {
+        setIsSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, isDeleteModalOpen]);
 
   // --- LOGIKA BIZNESOWA ---
   const getSpeakerName = (item: HistoryItem, speakerKey: string): string => {
@@ -337,6 +360,14 @@ export default function LastoWeb() {
               </button>
             ))}
           </div>
+          {history.length > 0 && (
+            <div className="sidebar-footer">
+                <button onClick={() => setIsDeleteAllModalOpen(true)} className="btn-clear-archive">
+                  <TrashIcon />
+                  <span>Wyczyść Archiwum</span>
+                </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -416,7 +447,7 @@ export default function LastoWeb() {
         </div>
       </div>
 
-      {/* MODAL USUWANIA */}
+    {/* MODAL USUWANIA POJEDYNCZEGO */}
       {isDeleteModalOpen && (
         <div className="modal-overlay" onClick={() => setIsDeleteModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -429,26 +460,55 @@ export default function LastoWeb() {
         </div>
       )}
 
+      {/* MODAL USUWANIA CAŁEGO ARCHIWUM */}
+      {isDeleteAllModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsDeleteAllModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-medium mb-2 dark:text-white">Wyczyścić archiwum?</h3>
+            <p className="text-xs text-gray-500 mb-6">Tej operacji nie można cofnąć.</p>
+            <div className="flex space-x-3">
+              <button onClick={() => setIsDeleteAllModalOpen(false)} className="btn-action-base btn-wyslij py-3">Anuluj</button>
+              <button onClick={async () => {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).clear();
+                setHistory([]);
+                setSelectedItem(null);
+                setIsDeleteAllModalOpen(false);
+              }} className="btn-action-base bg-red-600 text-white py-3">Wyczyść wszystko</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL USTAWIEŃ */}
       {isSettingsOpen && (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setIsSettingsOpen(false)} className="absolute top-6 right-8 text-gray-400"><CloseIcon /></button>
+          <div className="modal-content max-w-md relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setIsSettingsOpen(false)} className="absolute top-6 right-8 text-gray-400 hover:text-black dark:hover:text-white"><CloseIcon /></button>
             <h3 className="text-3xl font-thin text-center mb-8 dark:text-white">Ustawienia</h3>
-            <div className="space-y-6">
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                  <button onClick={() => setTheme('light')} className={`flex-1 py-2 rounded-lg text-xs ${theme === 'light' ? 'bg-white shadow text-black' : 'text-gray-400'}`}>Jasny</button>
-                  <button onClick={() => setTheme('dark')} className={`flex-1 py-2 rounded-lg text-xs ${theme === 'dark' ? 'bg-gray-700 shadow text-white' : 'text-gray-400'}`}>Ciemny</button>
+            
+            <div className="space-y-6 text-left">
+                {/* Wybór Motywu */}
+                <div className="space-y-2">
+                  <label className="speaker-label">Motyw wizualny</label>
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                    <button onClick={() => setTheme('light')} className={`flex-1 py-2 rounded-lg text-xs transition-all ${theme === 'light' ? 'bg-white shadow text-black' : 'text-gray-400'}`}>Jasny</button>
+                    <button onClick={() => setTheme('dark')} className={`flex-1 py-2 rounded-lg text-xs transition-all ${theme === 'dark' ? 'bg-gray-700 shadow text-white' : 'text-gray-400'}`}>Ciemny</button>
+                  </div>
                 </div>
-                <div className="text-left space-y-2">
-                  <label className="speaker-label">AssemblyAI Key</label>
-                  <input type="password" className="speaker-input" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} />
+
+                <div className="space-y-2">
+                  <label className="speaker-label">AssemblyAI API Key</label>
+                  <input type="password" className="speaker-input" value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem('assemblyAIKey', e.target.value); }} placeholder="Wklej klucz..." />
                 </div>
-                <div className="text-left space-y-2">
-                  <label className="speaker-label">Pantry ID</label>
-                  <input type="password" className="speaker-input" value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} />
+
+                <div className="space-y-2">
+                  <label className="speaker-label">Pantry ID (Cloud Sync)</label>
+                  <input type="password" className="speaker-input" value={pantryId} onChange={(e) => { setPantryId(e.target.value); localStorage.setItem('pantryId', e.target.value); }} placeholder="Wklej ID koszyka..." />
                 </div>
-                <button onClick={() => setIsSettingsOpen(false)} className="btn-action-base btn-status-success py-4 w-full">Gotowe</button>
+
+                <button onClick={() => setIsSettingsOpen(false)} className="btn-action-base btn-status-success py-4 w-full text-sm mt-4">Gotowe (Enter)</button>
             </div>
           </div>
         </div>
