@@ -169,6 +169,12 @@ export default function LastoWeb() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsSidebarOpen(window.innerWidth >= 768);
+    }
+  }, []);
+
+  useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('lastoTheme', theme);
