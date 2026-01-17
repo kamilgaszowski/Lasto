@@ -567,84 +567,70 @@ const checkStatus = async (id: string, fileName: string) => {
     {/* SIDEBAR */}
 <div className={`lasto-sidebar ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
   <div className="sidebar-content">
+    
     <div className="sidebar-header">
-      <h2 
-        onClick={() => setIsSidebarOpen(false)} 
-        className="text-2xl font-light tracking-tight cursor-pointer"
-      >
+      <h2 onClick={() => setIsSidebarOpen(false)} className="text-2xl font-light tracking-tight cursor-pointer">
         Archiwum
       </h2>
-      <button 
-        onClick={() => setIsSidebarOpen(false)} 
-        className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
-      >
+      <button onClick={() => setIsSidebarOpen(false)} className="text-gray-300 hover:text-black dark:hover:text-white cursor-pointer transition-colors">
         <RuneArrowLeft />
       </button>
     </div>
 
-          <div className="px-6 pb-6 flex space-x-2 relative">
-              <button 
-                onClick={loadFromCloud} 
-                disabled={!pantryId || isProcessing} 
-                className={`flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center space-x-2 ${
-                    pobierzState 
-                    ? 'bg-black dark:bg-white text-white dark:text-black' 
-                    : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100'
-                }`}
-              >
-                {!pobierzState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>}
-                <span>{pobierzState ? 'Pobrano' : 'Pobierz'}</span>
-              </button>
+    <div className="sidebar-actions-grid">
+        <button 
+          onClick={loadFromCloud} 
+          disabled={!pantryId || isProcessing} 
+          className={`btn-action-base ${pobierzState ? 'btn-status-success' : 'btn-pobierz'}`}
+        >
+          {!pobierzState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>}
+          <span>{pobierzState ? 'Pobrano' : 'Pobierz'}</span>
+        </button>
 
-              <button 
-                onClick={saveToCloud} 
-                disabled={!pantryId || isProcessing} 
-                className={`flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center space-x-2 ${
-                    wyslijState 
-                    ? 'bg-black dark:bg-white text-white dark:text-black' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200'
-                }`}
-              >
-                {!wyslijState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>}
-                <span>{wyslijState ? 'Wysłano' : 'Wyślij'}</span>
-              </button>
-          </div>
-
-          <div className="flex-1 flex flex-col overflow-y-auto px-4 space-y-1">
-            {history.map((item) => (
-  <button 
-    key={item.id} 
-    onClick={() => { 
-      setSelectedItem(item);
-      if (window.innerWidth < 768) setIsSidebarOpen(false);
-    }} 
-    className={`archive-item ${selectedItem?.id === item.id ? 'archive-item-active' : ''}`}
-  >
-    {/* PRZYCISK USUWANIA - Teraz super krótki */}
-    <div 
-      onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} 
-      className="archive-delete-btn"
-    >
-      <CloseIcon />
+        <button 
+          onClick={saveToCloud} 
+          disabled={!pantryId || isProcessing} 
+          className={`btn-action-base ${wyslijState ? 'btn-status-success' : 'btn-wyslij'}`}
+        >
+          {!wyslijState && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>}
+          <span>{wyslijState ? 'Wysłano' : 'Wyślij'}</span>
+        </button>
     </div>
 
-    <div className="archive-item-title">{item.title}</div>
-    <div className="archive-item-date">
-      {new Date(item.date).toLocaleString('pl-PL', { 
-        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
-      })}
-    </div>
-  </button>
-))}
+    <div className="archive-list">
+      {history.map((item) => (
+        <button 
+          key={item.id} 
+          onClick={() => { 
+            setSelectedItem(item);
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }} 
+          className={`archive-item ${selectedItem?.id === item.id ? 'archive-item-active' : ''}`}
+        >
+          <div 
+            onClick={(e) => { e.stopPropagation(); confirmDelete(item.id); }} 
+            className="archive-delete-btn"
+          >
+            <CloseIcon />
           </div>
+          <div className="archive-item-title">{item.title}</div>
+          <div className="archive-item-date">
+            {new Date(item.date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </button>
+      ))}
+    </div>
 
-          {history.length > 0 && (
-            <div className="p-6 border-t border-gray-100 dark:border-gray-800 mt-auto bg-gray-50/50 dark:bg-gray-900/50">
-                <button onClick={() => setIsDeleteAllModalOpen(true)} className="w-full py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center space-x-2"><TrashIcon /><span>Wyczyść Archiwum</span></button>
-            </div>
-          )}
-        </div>
+    {history.length > 0 && (
+      <div className="sidebar-footer">
+          <button onClick={() => setIsDeleteAllModalOpen(true)} className="btn-clear-archive">
+            <TrashIcon />
+            <span>Wyczyść Archiwum</span>
+          </button>
       </div>
+    )}
+  </div>
+</div>
 
       {/* GŁÓWNY PANEL */}
 <div className={`flex-1 flex flex-col relative bg-white dark:bg-gray-950 min-w-0 transition-all duration-300 

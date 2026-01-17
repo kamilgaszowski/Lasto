@@ -1,37 +1,11 @@
-
 @import "tailwindcss";
 
-
-
-
-/* Bazowy styl elementu na liście */
-.archive-item {
-  @apply w-full text-left p-4 rounded-xl transition-all relative group;
-  @apply hover:bg-gray-100 dark:hover:bg-gray-800/50;
-}
-
-/* Stan aktywny (wybrane nagranie) */
-.archive-item-active {
-  @apply bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10;
-}
-
-/* Napis tytułowy wewnątrz elementu */
-.archive-item-title {
-  @apply font-medium truncate text-sm pr-6;
-}
-
-/* Data pod tytułem */
-.archive-item-date {
-  @apply text-[10px] uppercase tracking-widest text-gray-400 mt-1;
-}
-
-/* Kontener boczny (Archiwum) */
+/* --- SIDEBAR STRUCTURE --- */
 .lasto-sidebar {
   @apply fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300;
   @apply bg-gray-50/95 dark:bg-gray-900/95 border-r border-gray-100 dark:border-gray-800;
 }
 
-/* Dynamiczna szerokość i stan sidebaru */
 .sidebar-open {
   @apply translate-x-0 w-full md:w-80;
 }
@@ -40,7 +14,6 @@
   @apply -translate-x-full w-full md:w-80;
 }
 
-/* Wewnętrzna struktura sidebaru */
 .sidebar-content {
   @apply flex flex-col h-full overflow-hidden;
 }
@@ -49,27 +22,64 @@
   @apply p-8 pb-4 flex justify-between items-center whitespace-nowrap;
 }
 
-/* Ukrywanie elementu tylko na mobile */
-.hide-on-mobile {
-  @apply hidden md:block;
+/* --- ACTION BUTTONS (Pobierz/Wyślij) --- */
+.sidebar-actions-grid {
+  @apply px-6 pb-6 flex space-x-2 relative;
 }
 
-/* Przyciski w archiwum */
+.btn-action-base {
+  @apply flex-1 py-2 px-3 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center space-x-2;
+}
+
+.btn-pobierz {
+  @apply bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100;
+}
+
+.btn-wyslij {
+  @apply bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200;
+}
+
+.btn-status-success {
+  @apply bg-black dark:bg-white text-white dark:text-black;
+}
+
+/* --- ARCHIVE LIST --- */
+.archive-list {
+  @apply flex-1 flex flex-col overflow-y-auto px-4 space-y-1;
+}
+
 .archive-item {
-  @apply w-full text-left p-4 rounded-xl transition-all relative group;
+  @apply w-full text-left p-4 rounded-xl transition-all relative;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-800/50;
 }
 
-/* Przycisk usuwania wewnątrz elementu archiwum */
+.archive-item-active {
+  @apply bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10;
+}
+
+.archive-item-title {
+  @apply font-medium truncate text-sm pr-6;
+}
+
+.archive-item-date {
+  @apply text-[10px] uppercase tracking-widest text-gray-400 mt-1;
+}
+
+/* Przycisk usuwania wewnątrz elementu */
 .archive-delete-btn {
-  @apply absolute top-2 right-2 p-2 z-10 transition-all;
+  @apply absolute top-2 right-2 p-2 z-10 opacity-0 transition-all;
   @apply text-gray-400 hover:text-red-500;
-  /* Domyślnie ukryty, pokazywany gdy rodzic (.archive-item) ma hover */
-  @apply opacity-0 group-hover:opacity-100;
 }
 
-/* Na urządzeniach dotykowych lepiej, żeby był lekko widoczny cały czas */
-@media (hover: none) {
-  .archive-delete-btn {
-    @apply opacity-40;
-  }
+/* Pokaż przycisk usuwania gdy najeżdżamy na element listy */
+.archive-item:hover .archive-delete-btn {
+  @apply opacity-100;
+}
+
+.sidebar-footer {
+  @apply p-6 border-t border-gray-100 dark:border-gray-800 mt-auto bg-gray-50/50 dark:bg-gray-900/50;
+}
+
+.btn-clear-archive {
+  @apply w-full py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center space-x-2;
 }
