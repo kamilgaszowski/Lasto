@@ -22,3 +22,4 @@
 
 .sidebar-header {
   @apply p-8 pb-4 flex justify-between items-center whitespace-nowrap;
+}
