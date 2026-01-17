@@ -187,7 +187,7 @@
 }
 
 .btn-status-success {
-  @apply bg-black dark:bg-white text-white dark:text-black border-transparent !important;
+  @apply !bg-black !dark:bg-white !text-white !dark:text-black !border-transparent;
 }
 
 /* --- FOOTER --- */
