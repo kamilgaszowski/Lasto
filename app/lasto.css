@@ -142,13 +142,21 @@
 }
 
 /* --- EDITOR SECTION --- */
-.editor-container {
-  @apply w-full max-w-5xl h-full flex flex-col space-y-6;
-  animation: lasto-slide-up 0.5s ease-out;
+
+.title-view-mode { 
+ 
+  @apply flex items-center w-full relative; 
 }
-.editor-header {
-  @apply flex items-end justify-between border-b border-gray-50 dark:border-gray-800 pb-6 min-h-[80px];
+
+.edit-indicator {
+  
+  @apply ml-4 opacity-30 text-gray-400 transition-all duration-300;
 }
+
+.title-view-mode:hover .edit-indicator {
+  opacity: 1;
+}
+
 .title-view-mode { @apply flex items-center w-full group relative; }
 .title-text { @apply text-4xl font-thin tracking-tight truncate max-w-2xl dark:text-white; }
 .title-clickable { @apply flex items-center w-full cursor-pointer; }

@@ -711,6 +711,7 @@ const checkStatus = async (id: string, fileName: string) => {
   </div>
 </div>
 { /*- SEKCJA GŁÓWNY PANEL END ---*/}
+
       {/* MODAL USTAWIEŃ */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setIsSettingsOpen(false)}>
