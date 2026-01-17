@@ -105,7 +105,14 @@
 /* --- SEKCJA GŁÓWNY PANEL START --- */
 
 .lasto-main-panel {
-  @apply flex-1 flex flex-col relative min-w-0 transition-all duration-300 bg-white dark:bg-gray-950;
+  @apply flex-1 flex flex-col relative min-w-0 transition-all duration-300;
+  /* Domyślne tło (jasne) */
+  background-color: white; 
+}
+
+/* Kiedy HTML ma klasę .dark, zmień tło panelu */
+:global(.dark) .lasto-main-panel {
+  background-color: #030712; /* gray-950 */
 }
 .panel-shifted { @apply md:ml-80 ml-0; }
 
@@ -119,7 +126,12 @@
   animation: lasto-fade-in-zoom 0.7s ease-out;
 }
 .hero-title {
-  @apply text-6xl md:text-9xl font-thin tracking-tighter text-gray-900 dark:text-white transition-colors;
+  @apply text-6xl md:text-9xl font-thin tracking-tighter transition-colors;
+  color: #111827; /* gray-900 */
+}
+
+:global(.dark) .hero-title {
+  color: white;
 }
 .hero-subtitle {
   @apply flex items-center justify-center space-x-6 text-xl font-light text-gray-400;
@@ -161,9 +173,15 @@
   opacity: 1;
 }
 
-.title-text { @apply text-4xl font-thin tracking-tight truncate max-w-2xl dark:text-white; }
-.title-clickable { @apply flex items-center w-full cursor-pointer; }
+/* Tekst w edytorze */
+.title-text {
+  @apply text-4xl font-thin tracking-tight truncate max-w-2xl;
+  color: black;
+}
 
+:global(.dark) .title-text {
+  color: white;
+}
 .title-input {
   @apply w-full text-4xl font-thin tracking-tight bg-gray-50 dark:bg-gray-900 p-2 rounded outline-none dark:text-white focus:ring-1 focus:ring-black dark:focus:ring-white;
 }
@@ -239,13 +257,18 @@
   animation: lasto-fade-in 0.3s ease-out;
 }
 
+/* To samo dla dużego modala ustawień */
 .settings-modal {
   @apply w-full max-w-5xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden relative;
-  @apply bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-2xl;
-  /* Animacja wejścia modala (lekkie powiększenie) */
+  @apply border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-2xl;
   animation: lasto-scale-in 0.3s ease-out;
+
+  background-color: white;
 }
 
+:global(.dark) .settings-modal {
+  background-color: #111827; /* gray-900 */
+}
 @keyframes lasto-scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
@@ -376,9 +399,17 @@
 
 /* Kontener Modala (Wspólny wygląd) */
 .modal-box {
-  @apply bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800;
+  @apply border border-gray-100 dark:border-gray-800;
   @apply p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center;
   animation: lasto-scale-in 0.2s ease-out;
+  
+  /* Kolory tła wprost w CSS */
+  background-color: white;
+}
+
+:global(.dark) .modal-box {
+  background-color: #111827; /* gray-900 */
+  border-color: #1f2937;
 }
 
 /* Ikony w kółkach */
