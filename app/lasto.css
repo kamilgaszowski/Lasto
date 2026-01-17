@@ -1,4 +1,5 @@
-/* src/app/lasto.css */
+
+@import "tailwindcss";
 
 /* Kontener boczny (Archiwum) */
 .lasto-sidebar {
