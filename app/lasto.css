@@ -350,3 +350,69 @@
 }
 
 /* --- MODAL USTAWIEŃ END --- */
+/* --- MODALE (Delete / Info) START --- */
+
+/* Tła (Overlaye) */
+.modal-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-6 outline-none;
+  @apply bg-black/40 backdrop-blur-md;
+  animation: lasto-fade-in 0.2s ease-out;
+}
+
+.modal-backdrop-high {
+  @apply modal-backdrop z-[60]; /* Wyższy index dla usuwania wszystkiego */
+}
+
+.modal-backdrop-light {
+  @apply modal-backdrop bg-white/60 dark:bg-black/80 backdrop-blur-xl;
+}
+
+/* Kontener Modala (Wspólny wygląd) */
+.modal-box {
+  @apply bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800;
+  @apply p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center;
+  animation: lasto-scale-in 0.2s ease-out;
+}
+
+/* Ikony w kółkach */
+.modal-icon-wrapper {
+  @apply mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4;
+}
+.icon-theme-red { @apply bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500; }
+.icon-theme-danger { @apply bg-red-500 text-white animate-pulse; }
+.icon-theme-neutral { @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white; }
+
+/* Teksty */
+.modal-title-sm { @apply text-xl font-medium dark:text-white; }
+.modal-title-bold { @apply text-xl font-bold dark:text-white; }
+.modal-desc { @apply text-sm text-gray-500 dark:text-gray-400; }
+
+/* Przyciski w modalach */
+.modal-actions-row { @apply flex space-x-3 pt-2; }
+.modal-actions-col { @apply flex flex-col space-y-2 pt-4; }
+
+.btn-modal-cancel {
+  @apply flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300;
+  @apply hover:bg-gray-200 transition-colors text-sm font-medium;
+}
+
+.btn-modal-delete {
+  @apply flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors;
+  @apply text-sm font-medium shadow-lg shadow-red-600/20;
+}
+
+.btn-modal-delete-all {
+  @apply w-full py-4 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20;
+  @apply hover:bg-red-700 transition-colors text-sm;
+}
+
+.btn-modal-cancel-text {
+  @apply w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-medium;
+}
+
+.btn-modal-ok {
+  @apply w-full px-4 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black;
+  @apply hover:bg-gray-800 transition-colors text-sm font-medium;
+}
+
+/* --- MODALE (Delete / Info) END --- */

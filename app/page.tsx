@@ -826,38 +826,79 @@ const checkStatus = async (id: string, fileName: string) => {
   </div>
 )}
 
-      {/* MODAL USUWANIA JEDNEGO */}
-      {isDeleteModalOpen && (
-        <div ref={deleteModalRef} className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-6 outline-none" onClick={() => setIsDeleteModalOpen(false)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); executeDelete(); } if (e.key === 'Escape') setIsDeleteModalOpen(false); }} tabIndex={-1}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-500 mb-4"><TrashIcon /></div>
-            <div className="space-y-2"><h3 className="text-xl font-medium dark:text-white">Usunąć nagranie?</h3><p className="text-sm text-gray-500 dark:text-gray-400">Tej operacji nie można cofnąć.</p></div>
-            <div className="flex space-x-3 pt-2"><button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition-colors text-sm font-medium">Anuluj</button><button onClick={executeDelete} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium shadow-lg shadow-red-600/20">Usuń (Enter)</button></div>
-          </div>
-        </div>
-      )}
+     {/* MODAL USUWANIA JEDNEGO */}
+{isDeleteModalOpen && (
+  <div 
+    ref={deleteModalRef} 
+    className="modal-backdrop" 
+    onClick={() => setIsDeleteModalOpen(false)} 
+    onKeyDown={(e) => { 
+      if (e.key === 'Enter') { e.preventDefault(); executeDelete(); } 
+      if (e.key === 'Escape') setIsDeleteModalOpen(false); 
+    }} 
+    tabIndex={-1}
+  >
+    <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-icon-wrapper icon-theme-red">
+        <TrashIcon />
+      </div>
+      <div className="space-y-2">
+        <h3 className="modal-title-sm">Usunąć nagranie?</h3>
+        <p className="modal-desc">Tej operacji nie można cofnąć.</p>
+      </div>
+      <div className="modal-actions-row">
+        <button onClick={() => setIsDeleteModalOpen(false)} className="btn-modal-cancel">Anuluj</button>
+        <button onClick={executeDelete} className="btn-modal-delete">Usuń (Enter)</button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {/* MODAL USUWANIA WSZYSTKIEGO */}
-      {isDeleteAllModalOpen && (
-        <div ref={deleteAllModalRef} className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[60] p-6 outline-none" onClick={() => setIsDeleteAllModalOpen(false)} onKeyDown={(e) => { if (e.key === 'Enter') executeDeleteAll(); if (e.key === 'Escape') setIsDeleteAllModalOpen(false); }} tabIndex={-1}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white mb-4 animate-pulse"><TrashIcon /></div>
-            <div className="space-y-2"><h3 className="text-xl font-bold dark:text-white">Usunąć wszystko?</h3><p className="text-sm text-gray-500 dark:text-gray-400">Stracisz bezpowrotnie wszystkie nagrania lokalne i w chmurze Pantry.</p></div>
-            <div className="flex flex-col space-y-2 pt-4"><button onClick={executeDeleteAll} className="w-full py-4 rounded-xl bg-red-600 text-white font-bold shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors text-sm">Tak, usuń wszystko (Enter)</button><button onClick={() => setIsDeleteAllModalOpen(false)} className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-medium">Anuluj (Esc)</button></div>
-          </div>
-        </div>
-      )}
+{/* MODAL USUWANIA WSZYSTKIEGO */}
+{isDeleteAllModalOpen && (
+  <div 
+    ref={deleteAllModalRef} 
+    className="modal-backdrop-high" 
+    onClick={() => setIsDeleteAllModalOpen(false)} 
+    onKeyDown={(e) => { 
+      if (e.key === 'Enter') executeDeleteAll(); 
+      if (e.key === 'Escape') setIsDeleteAllModalOpen(false); 
+    }} 
+    tabIndex={-1}
+  >
+    <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-icon-wrapper icon-theme-danger">
+        <TrashIcon />
+      </div>
+      <div className="space-y-2">
+        <h3 className="modal-title-bold">Usunąć wszystko?</h3>
+        <p className="modal-desc">Stracisz bezpowrotnie wszystkie nagrania lokalne i w chmurze Pantry.</p>
+      </div>
+      <div className="modal-actions-col">
+        <button onClick={executeDeleteAll} className="btn-modal-delete-all">Tak, usuń wszystko (Enter)</button>
+        <button onClick={() => setIsDeleteAllModalOpen(false)} className="btn-modal-cancel-text">Anuluj (Esc)</button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {/* MODAL INFORMACYJNY */}
-      {infoModal.isOpen && (
-        <div className="fixed inset-0 bg-white/60 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm space-y-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-900 dark:text-white mb-4"><InfoIcon /></div>
-            <div className="space-y-2"><h3 className="text-xl font-medium dark:text-white">{infoModal.title}</h3><p className="text-sm text-gray-500 dark:text-gray-400">{infoModal.message}</p></div>
-            <div className="pt-2"><button onClick={() => setInfoModal({ ...infoModal, isOpen: false })} className="w-full px-4 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 transition-colors text-sm font-medium">OK</button></div>
-          </div>
-        </div>
-      )}
+{/* MODAL INFORMACYJNY */}
+{infoModal.isOpen && (
+  <div className="modal-backdrop-light" onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>
+    <div className="modal-box space-y-6" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-icon-wrapper icon-theme-neutral">
+        <InfoIcon />
+      </div>
+      <div className="space-y-2">
+        <h3 className="modal-title-sm">{infoModal.title}</h3>
+        <p className="modal-desc">{infoModal.message}</p>
+      </div>
+      <div className="pt-2">
+        <button onClick={() => setInfoModal({ ...infoModal, isOpen: false })} className="btn-modal-ok">OK</button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }
